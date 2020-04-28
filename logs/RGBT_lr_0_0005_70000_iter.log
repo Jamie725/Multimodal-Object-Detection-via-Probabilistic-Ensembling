@@ -1,0 +1,8 @@
+../../../Datasets/FLIR/train/thermal_annotations_4_channel.json
+4 channel input
+> /usr0/home/jamie/Desktop/Code/Others/detectron2/demo/demo_train_4_input.py(120)<module>()
+-> eval_every_iter = 1000
+(Pdb) (Pdb) --KeyboardInterrupt--
+(Pdb) --KeyboardInterrupt--
+(Pdb) --KeyboardInterrupt--
+(Pdb) 
