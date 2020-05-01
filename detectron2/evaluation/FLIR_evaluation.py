@@ -537,7 +537,8 @@ def _evaluate_predictions_on_coco(coco_gt, coco_results, iou_type, kpt_oks_sigma
     # A: Area size, (all, small, medium, large), size 4
     # M: maxDets, (1, 10, 100), size 3
     
-    if save_eval:
+    if out_eval_path:
+        print("---------- Saving evaluation results! ------")
         with open(out_eval_path,'wb') as f: 
             pickle.dump(coco_eval, f)
 
