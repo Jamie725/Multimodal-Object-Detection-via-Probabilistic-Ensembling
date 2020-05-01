@@ -35,9 +35,6 @@ def test(cfg, dataset_name):
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
 
-#Set GPU
-torch.cuda.set_device(1)
-
 # get path
 dataset = 'FLIR'
 # Train path
@@ -90,14 +87,16 @@ cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for th
 cfg.DATALOADER.NUM_WORKERS = 2
 cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
-cfg.SOLVER.MAX_ITER = 100000
+cfg.SOLVER.MAX_ITER = 30000
+# Set GPU
+torch.cuda.set_device(0)
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
 
-# Pid = 1677 -> gpu1
+# Pid = 17260 -> gpu1
 # Pid =  -> gpu0
 
 ###### Parameter for 3 channel input ####
-#cfg.MODEL.BACKBONE.FREEZE_AT = 0
+
 cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
 cfg.INPUT.FORMAT = 'BGR'
 cfg.INPUT.NUM_IN_CHANNELS = 3
@@ -130,6 +129,8 @@ cfg.INPUT.NUM_IN_CHANNELS = 4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 17
+#cfg.MODEL.BACKBONE.FREEZE_AT = 0
 cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth'
 
 eval_every_iter = 1000
@@ -143,12 +144,14 @@ with torch.no_grad():
     for param in trainer.model.backbone.bottom_up.stem.parameters(): 
         param.data = param_cat
     print('-------- Changed the weights! ----------')
+    del param_cat
 
 for idx in range(num_loops):
     print('============== The ', idx, ' * ', eval_every_iter, ' iterations ============')    
     
     if idx > 0:
         cfg.MODEL.WEIGHTS = out_model_path
+        cfg.MODEL.BACKBONE.FREEZE_AT = 0
         trainer = DefaultTrainer(cfg)
         trainer.resume_or_load(resume=False)
         
