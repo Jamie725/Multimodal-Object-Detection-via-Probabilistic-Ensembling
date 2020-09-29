@@ -1,11 +1,16 @@
+"""
+Remove thermal files that does not contain RGB image
+"""
+
 import pdb
 import os
 import json
 from os.path import isfile, join
+import cv2
 
-data_set = 'train'
+data_set = 'val'
 in_anno_file = '../../../Datasets/FLIR/'+data_set+'/thermal_annotations_new.json'
-out_anno_file = '../../../Datasets/FLIR/'+data_set+'/thermal_annotations_4_channel_no_dogs.json'
+out_anno_file = '../../../Datasets/FLIR/'+data_set+'/RGB_annotations_4_channel_no_dogs.json'
 img_folder = '../../../Datasets/FLIR/'+data_set+'/RGB'
 #in_anno_file = out_anno_file
 data = json.load(open(in_anno_file, 'r'))
@@ -41,8 +46,15 @@ for i in range(len(images)):
     img_name = images[i]['file_name']
     img_file_num = int(img_name.split('FLIR_')[1].split('.')[0])
     if img_file_num in rgb_img_dict.keys():
-        images_new.append(images[i])
+        img_info = images[i].copy()
+        fname = img_info['file_name'].split('.jpeg')[0]
+        fname = 'RGB/' + fname.split('8_bit/')[1] + '.jpg'
+        img_info['file_name'] = fname
+        img = cv2.imread('../../../Datasets/FLIR/'+data_set+'/'+fname)
 
+        img_info['height'] = img.shape[0]
+        img_info['width'] = img.shape[1]
+        images_new.append(img_info)        
         img_id = images[i]['id']
         
         while annotations[anno_cnt]['image_id'] < img_id:

@@ -69,11 +69,36 @@ def read_image(file_name, format=None):
             #print(rgb_path)
             rgb_img = cv2.imread(rgb_path)
             thermal_img = cv2.imread(file_name)
-            
+
             rgb_img = cv2.resize(rgb_img,(thermal_img.shape[1], thermal_img.shape[0]))
             image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 6))
             image [:,:,0:3] = rgb_img
             image [:,:,3:6] = thermal_img
+        elif format =='T_TCONV':
+            #import pdb;pdb.set_trace()
+            folder = file_name.split('thermal_8_bit/')[0]
+            img_name = file_name.split('thermal_8_bit/')[1]
+            img_name = img_name.split('.')[0] + '.jpeg'
+            t_conv_path = folder + 'thermal_convert/' + img_name
+            t_conv_img = cv2.imread(t_conv_path)
+            thermal_img = cv2.imread(file_name)
+            image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 2))
+            image [:,:,0] = t_conv_img[:,:,0]
+            image [:,:,1] = thermal_img[:,:,0]
+        elif format == 'T_TCONV_MASK':
+ 
+            folder = file_name.split('thermal_convert/')[0]
+            img_name = file_name.split('thermal_convert/')[1]
+            #img_name = img_name.split('.')[0] + '.jpeg'
+            t_conv_path = folder + 'thermal_convert/' + img_name
+            t_conv_img = cv2.imread(t_conv_path)
+            t_mask_path = folder + 'thermal_analysis/' + file_name.split('thermal_convert/')[1].split(".")[0] + '_mask.jpg'
+            mask_img = cv2.imread(t_mask_path)
+            thermal_img = cv2.imread(file_name)
+            image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 3))
+            image [:,:,0] = t_conv_img[:,:,0]
+            image [:,:,1] = thermal_img[:,:,0]
+            image [:,:,2] = mask_img[:,:,0]
         else:
             image = Image.open(f)
 
@@ -164,7 +189,7 @@ def transform_proposals(dataset_dict, image_shape, transforms, min_box_side_len,
         proposals.proposal_boxes = boxes[:proposal_topk]
         proposals.objectness_logits = objectness_logits[:proposal_topk]
         dataset_dict["proposals"] = proposals
-
+        #pdb.set_trace()
 
 def transform_instance_annotations(
     annotation, transforms, image_size, *, keypoint_hflip_indices=None

@@ -86,9 +86,13 @@ class ResizeTransform(Transform):
             ret = np.zeros((self.new_h, self.new_w, 6))
             ret[:,:,0:3] = cv2.resize(img[:,:,0:3], (self.new_w, self.new_h))
             ret[:,:,3:6] = cv2.resize(img[:,:,3:6], (self.new_w, self.new_h))
+        elif img.shape[-1] == 2:
+            ret = cv2.resize(img, (self.new_w, self.new_h))
         else:
             assert img.shape[:2] == (self.h, self.w)
-            pil_image = Image.fromarray(img)
+            #import pdb; pdb.set_trace()
+            import numpy as np
+            pil_image = Image.fromarray(img.astype(np.uint8))
             interp_method = interp if interp is not None else self.interp
             pil_image = pil_image.resize((self.new_w, self.new_h), interp_method)
             ret = np.asarray(pil_image)

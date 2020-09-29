@@ -28,19 +28,20 @@ def test(cfg, dataset_name):
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
 
 #Set GPU
-torch.cuda.set_device(0)
+torch.cuda.set_device(1)
 
 # get path
 dataset = 'FLIR'
 # Train path
-train_path = '../../../Datasets/'+ dataset +'/train/thermal_8_bit/'
-train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
-train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4class.json'
-#train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_new2.json'
+train_folder = '../../../Datasets/FLIR/train/RGB'
+#train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
+#train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4class.json'
+train_json_path = '../../../Datasets/'+dataset+'/train/RGB_annotations_4_channel_no_dogs.json'
 # Validation path
-val_path = '../../../Datasets/'+ dataset +'/val/thermal_8_bit/'
-val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
-val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4class.json'
+#val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
+val_folder = '../../../Datasets/FLIR/val/RGB'
+#val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4class.json'
+val_json_path = '../../../Datasets/'+dataset+'/val/RGB_annotations_4_channel_no_dogs.json'
 print(train_json_path)
 
 # Register dataset
@@ -56,9 +57,6 @@ FLIR_metadata_test = MetadataCatalog.get(dataset_test)
 dataset_dicts_test = DatasetCatalog.get(dataset_test)
 
 model = 'faster_rcnn_R_101_FPN_3x'
-
-files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
-
 out_folder = 'output_val'
 out_model_path = os.path.join(out_folder, 'out_model_final.pth')
 if not os.path.exists(out_folder):
@@ -70,15 +68,17 @@ cfg.OUTPUT_DIR = out_folder
 cfg.merge_from_file("./configs/FLIR-Detection/faster_rcnn_R_101_FLIR.yaml")
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
 cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.INPUT.NUM_IN_CHANNELS = 4
+cfg.INPUT.NUM_IN_CHANNELS = 3
+#cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438]
+#cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
 # Train config
 cfg.DATASETS.TRAIN = (dataset_train,)
 cfg.DATASETS.TEST = (dataset_test, )
 #cfg.TEST.EVAL_PERIOD = 50
 cfg.DATALOADER.NUM_WORKERS = 2
-cfg.SOLVER.IMS_PER_BATCH = 2
+cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
-cfg.SOLVER.MAX_ITER = 8000    # 300 iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
+cfg.SOLVER.MAX_ITER = 20000    # 300 iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512   # faster, and good enough for this toy dataset (default: 512)
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for this model
@@ -101,14 +101,13 @@ for idx in range(num_loops):
     
         out_name = 'out_model_iter_'+ str(idx*eval_every_iter) +'.pth'
         out_model_path = os.path.join(out_folder, out_name)
-    pdb.set_trace()
     trainer.train()
     torch.save(trainer.model.state_dict(), out_model_path)
     #pdb.set_trace()
 
     test(cfg, dataset_test)
+
     del trainer
-    #pdb.set_trace()
 
 
 # Test on training set

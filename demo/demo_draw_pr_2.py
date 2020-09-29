@@ -15,7 +15,7 @@ import json
 def draw_pr(eval_file_name, out_folder):
     with open(eval_file_name, 'rb') as eval_file:
         # Data to be read
-        class_id = [0, 1, 2]
+        class_id = [0, 1, 2, 16]
         class_name = ['Person', 'Bicycle', 'Car'] #, 'Dog']
 
         # Load evaluation result
@@ -26,11 +26,12 @@ def draw_pr(eval_file_name, out_folder):
         mAP_all = 0
         # IoU = 0.50:0.95
         for id in range(len(class_id)):
+            pdb.set_trace()
             pr_all = coco_eval.eval['precision'][:,:,class_id[id],0,2]
             mAP_all += np.mean(pr_all)
 
         mAP_all /= len(class_name)
-        pdb.set_trace()
+        
         #print('Average Precision (AP) @[ IoU=0.50:0.95| area= all | maxDets=100 ] = ', mAP_all)
         
         # IoU = 0.5 / 0.75 results
@@ -117,6 +118,7 @@ def draw_pr(eval_file_name, out_folder):
             plt.savefig(out_fig_name)
             plt.close(fig)
             
+
 if __name__ == '__main__':
     out_folder = 'pr_curve/'
     if not os.path.exists(out_folder):
@@ -124,5 +126,5 @@ if __name__ == '__main__':
     #if not os.path.exists(out_folder):
         #os.mkdir(out_folder)
     #pdb.set_trace()
-    #draw_pr('824_output_thermal_analysis/out_eval_test_10000.json', out_folder)
-    draw_pr('824/mAP/concate_2000_val.out', out_folder)
+    #draw_pr('detections/coco_instances_results_FLIR_thermal_input_train.json', out_folder)
+    draw_pr('FLIR_noT_val_eval.out', out_folder)

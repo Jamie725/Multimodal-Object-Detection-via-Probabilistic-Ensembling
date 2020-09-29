@@ -99,7 +99,8 @@ cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
 cfg.SOLVER.MAX_ITER = 100000
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
+#cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
+cfg.MODEL.WEIGHTS = 'output_RGBT_sum/good_model/out_model_iter_1000.pth'
 # Pid =  -> gpu1
 # Pid =  -> gpu0
 
@@ -117,14 +118,14 @@ checkpoint = torch.load(cfg.MODEL.WEIGHTS)
 
 from detectron2.modeling import build_model
 model_ther = build_model(cfg)
-model_ther.load_state_dict(checkpoint['model'])
+model_ther.load_state_dict(checkpoint)
 param = list(model_ther.parameters())
 param_conv1 = param[16]
 param_t = (param_conv1[:,0,:,:] + param_conv1[:,1,:,:] + param_conv1[:,2,:,:])
 param_t = param_t.unsqueeze(1)
 param_conv1 = param_conv1.data.fill_(0)
 param_cat = torch.cat((param_conv1, param_t), 1)
-
+pdb.set_trace()
 del checkpoint
 del model_ther
 del param

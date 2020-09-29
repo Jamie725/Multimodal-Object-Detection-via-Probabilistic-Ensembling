@@ -10,6 +10,7 @@ def batched_nms(boxes, scores, idxs, iou_threshold):
     """
     Same as torchvision.ops.boxes.batched_nms, but safer.
     """
+    #import pdb; pdb.set_trace()
     assert boxes.shape[-1] == 4
     # TODO may need better strategy.
     # Investigate after having a fully-cuda NMS op.
@@ -23,6 +24,7 @@ def batched_nms(boxes, scores, idxs, iou_threshold):
         result_mask[mask[keep]] = True
     keep = result_mask.nonzero().view(-1)
     keep = keep[scores[keep].argsort(descending=True)]
+    #pdb.set_trace()
     return keep
 
 

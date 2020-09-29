@@ -10,7 +10,7 @@ import pdb
 #mypath = 'input/FLIR/Day/'
 dataset = 'FLIR'
 mode = 'train'
-img_folder = '../../../Datasets/FLIR/train/thermal_8_bit/'
+img_folder = '../../../Datasets/FLIR/train/thermal_analysis/'
 
 files_names = [f for f in listdir(img_folder) if isfile(join(img_folder, f))]
 
