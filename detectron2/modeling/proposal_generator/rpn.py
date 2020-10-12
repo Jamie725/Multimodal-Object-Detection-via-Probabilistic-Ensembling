@@ -57,7 +57,10 @@ class StandardRPNHead(nn.Module):
             len(set(num_cell_anchors)) == 1
         ), "Each level must have the same number of cell anchors"
         num_cell_anchors = num_cell_anchors[0]
-
+        #import pdb; pdb.set_trace()
+        #if cfg.INPUT.FORMAT == 'BGRTTT':
+        #    in_channels *= 2
+        self.conv = nn.Conv2d(in_channels*2, in_channels*2, kernel_size=3, stride=1, padding=1)
         # 3x3 conv for the hidden representation
         self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
         # 1x1 conv for predicting objectness logits
@@ -103,7 +106,7 @@ class RPN(nn.Module):
         self.smooth_l1_beta          = cfg.MODEL.RPN.SMOOTH_L1_BETA
         self.loss_weight             = cfg.MODEL.RPN.LOSS_WEIGHT
         # fmt: on
-
+        
         # Map from self.training state to train/test settings
         self.pre_nms_topk = {
             True: cfg.MODEL.RPN.PRE_NMS_TOPK_TRAIN,
@@ -159,7 +162,6 @@ class RPN(nn.Module):
             gt_boxes,
             self.smooth_l1_beta,
         )
-
         if self.training:
             losses = {k: v * self.loss_weight for k, v in outputs.losses().items()}
         else:

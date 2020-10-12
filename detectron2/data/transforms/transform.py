@@ -41,6 +41,7 @@ class ExtentTransform(Transform):
             resample=interp if interp else self.interp,
             fill=self.fill,
         )
+        #import pdb; pdb.set_trace()
         return np.asarray(ret)
 
     def apply_coords(self, coords):
@@ -83,6 +84,7 @@ class ResizeTransform(Transform):
         if img.shape[-1] == 4:
             ret = cv2.resize(img, (self.new_w, self.new_h))
         elif img.shape[-1] == 6:
+            import numpy as np
             ret = np.zeros((self.new_h, self.new_w, 6))
             ret[:,:,0:3] = cv2.resize(img[:,:,0:3], (self.new_w, self.new_h))
             ret[:,:,3:6] = cv2.resize(img[:,:,3:6], (self.new_w, self.new_h))

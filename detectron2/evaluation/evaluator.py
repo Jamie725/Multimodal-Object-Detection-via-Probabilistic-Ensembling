@@ -130,7 +130,7 @@ def inference_on_dataset(model, data_loader, evaluator):
                 torch.cuda.synchronize()
             total_compute_time += time.perf_counter() - start_compute_time
             evaluator.process(inputs, outputs)
-            pdb.set_trace()
+            #pdb.set_trace()
 
             iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
             seconds_per_img = total_compute_time / iters_after_start

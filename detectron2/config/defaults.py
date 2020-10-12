@@ -41,7 +41,8 @@ _C.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
 # Otherwise, you can use [57.375, 57.120, 58.395] (ImageNet std)
 _C.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
 
-
+_C.MODEL.BLUR_RGB = False
+_C.MODEL.MAX_POOL_RGB = False
 # -----------------------------------------------------------------------------
 # INPUT
 # -----------------------------------------------------------------------------
@@ -129,7 +130,7 @@ _C.MODEL.BACKBONE.NAME = "build_resnet_backbone"
 # There are 5 stages in ResNet. The first is a convolution, and the following
 # stages are each group of residual blocks.
 _C.MODEL.BACKBONE.FREEZE_AT = 2
-
+#_C.MDOEL.BACKBONE.MIDDLE_FUSION = False
 
 # ---------------------------------------------------------------------------- #
 # FPN options

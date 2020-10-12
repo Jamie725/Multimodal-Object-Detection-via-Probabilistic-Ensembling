@@ -14,9 +14,9 @@ from ..proposal_generator import build_proposal_generator
 from ..roi_heads import build_roi_heads
 from .build import META_ARCH_REGISTRY
 from detectron2.layers import ShapeSpec
+from .gaussian_blur import gaussian_blur
 
 __all__ = ["GeneralizedRCNN", "ProposalNetwork"]
-
 
 @META_ARCH_REGISTRY.register()
 class GeneralizedRCNN(nn.Module):
@@ -31,9 +31,17 @@ class GeneralizedRCNN(nn.Module):
         super().__init__()
 
         self.device = torch.device(cfg.MODEL.DEVICE)
+        #self.backbone_2 == None
         #Jamie
         if cfg.INPUT.NUM_IN_CHANNELS != 3:
-            input_shape = ShapeSpec(channels=cfg.INPUT.NUM_IN_CHANNELS)
+            if cfg.INPUT.FORMAT == 'BGRTTT':
+                input_shape = ShapeSpec(channels=3)
+                self.backbone_2 = build_backbone(cfg, input_shape)
+            else:    
+                input_shape = ShapeSpec(channels=cfg.INPUT.NUM_IN_CHANNELS)
+            # Jamie
+            #if cfg.INPUT.FORMAT = 'BGRTTT':
+            #    self.backbone =
             self.backbone = build_backbone(cfg, input_shape)
             num_channels = cfg.INPUT.NUM_IN_CHANNELS
             #Jamie
@@ -44,16 +52,42 @@ class GeneralizedRCNN(nn.Module):
             print('3 channel input')
             self.backbone = build_backbone(cfg)
             num_channels = len(cfg.MODEL.PIXEL_MEAN)
-        self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
-        self.roi_heads = build_roi_heads(cfg, self.backbone.output_shape())
+        
+        if cfg.INPUT.FORMAT == 'BGRTTT':
+            output_shape = {}
+            for key in self.backbone.output_shape().keys():
+                temp_num_channel = self.backbone.output_shape()[key].channels*2
+                temp_stride = self.backbone.output_shape()[key].stride
+                output_shape[key] = ShapeSpec(channels=temp_num_channel, stride=temp_stride)
+            self.proposal_generator = build_proposal_generator(cfg, output_shape)
+            self.roi_heads = build_roi_heads(cfg, output_shape)
+            del output_shape
+            pixel_mean_RGB = torch.Tensor(cfg.MODEL.PIXEL_MEAN[:3]).to(self.device).view(3, 1, 1)
+            pixel_mean_thermal = torch.Tensor(cfg.MODEL.PIXEL_MEAN[3:]).to(self.device).view(3, 1, 1)
+            pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD[:3]).to(self.device).view(3, 1, 1)
+
+            self.normalizer = lambda x: (x - pixel_mean_RGB) / pixel_std
+            self.normalizer_thermal = lambda x: (x - pixel_mean_thermal) / pixel_std
+        else:
+            self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
+            self.roi_heads = build_roi_heads(cfg, self.backbone.output_shape())
+            pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device).view(num_channels, 1, 1)
+            pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).to(self.device).view(num_channels, 1, 1)
+            self.normalizer = lambda x: (x - pixel_mean) / pixel_std
+        
         self.vis_period = cfg.VIS_PERIOD
         self.input_format = cfg.INPUT.FORMAT
         assert len(cfg.MODEL.PIXEL_MEAN) == len(cfg.MODEL.PIXEL_STD)
-        #import pdb;pdb.set_trace()
-        pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device).view(num_channels, 1, 1)
-        pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).to(self.device).view(num_channels, 1, 1)
-        self.normalizer = lambda x: (x - pixel_mean) / pixel_std
+        
         self.to(self.device)
+        
+        # Jamie
+        self.blur_rgb = False
+        if cfg.MODEL.BLUR_RGB:
+            self.blur_rgb = True
+        self.max_pool_rgb = False
+        if cfg.MODEL.MAX_POOL_RGB:
+            self.max_pool_rgb = True
         """
         self.backbone = build_backbone(cfg)
         self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
@@ -106,7 +140,17 @@ class GeneralizedRCNN(nn.Module):
             vis_name = "Left: GT bounding boxes;  Right: Predicted proposals"
             storage.put_image(vis_name, vis_img)
             break  # only visualize one image in a batch
+    def apply_Gaussian_blur(self, input_features):
+        filter_size = 5
+        sigma = 3
+        large_feature_map_key = ['p2', 'p3', 'p4']
+        small_feature_map_key = ['p5','p6']
+        import pdb; pdb.set_trace()
+        ft_map = input_features['p2']
+        gaussian_blur(ft_map,(filter_size,filter_size), (sigma,sigma))
 
+
+        return
     def forward(self, batched_inputs):
         """
         Args:
@@ -143,8 +187,24 @@ class GeneralizedRCNN(nn.Module):
             gt_instances = [x["targets"].to(self.device) for x in batched_inputs]
         else:
             gt_instances = None
-
-        features = self.backbone(images.tensor)
+        
+        if self.backbone_2:
+            RGB_tensor = images.tensor[:,:3,:,:]
+            thermal_tensor = images.tensor[:,3:,:,:]
+            features_RGB = self.backbone(RGB_tensor)
+            if self.blur_rgb:
+                features_RGB = self.apply_Gaussian_blur(features_RGB)
+                
+            features_thermal = self.backbone(thermal_tensor)
+            features = {}
+            for key in features_RGB.keys():
+                if self.max_pool_rgb:
+                    max_pooling = nn.MaxPool2d(3, stride=1, padding=1)
+                    features_RGB[key] = max_pooling(features_RGB[key])
+                features[key] = torch.cat((features_RGB[key], features_thermal[key]), 1)
+            del features_RGB, features_thermal
+        else:
+            features = self.backbone(images.tensor)
 
         if self.proposal_generator:
             proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
@@ -184,7 +244,17 @@ class GeneralizedRCNN(nn.Module):
         assert not self.training
 
         images = self.preprocess_image(batched_inputs)
-        features = self.backbone(images.tensor)
+        if self.backbone_2:
+            RGB_tensor = images.tensor[:,:3,:,:]
+            thermal_tensor = images.tensor[:,3:,:,:]
+            features_RGB = self.backbone(RGB_tensor)
+            features_thermal = self.backbone(thermal_tensor)
+            features = {}
+            for key in features_RGB.keys():                                
+                features[key] = torch.cat((features_RGB[key], features_thermal[key]), 1)
+            del features_RGB, features_thermal
+        else:
+            features = self.backbone(images.tensor)
 
         if detected_instances is None:
             if self.proposal_generator:
@@ -207,8 +277,18 @@ class GeneralizedRCNN(nn.Module):
         """
         Normalize, pad and batch the input images.
         """
+        
         images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [self.normalizer(x) for x in images]
+        if self.input_format == 'BGRTTT':
+            imgs = []
+            for x in images:
+                rgb = self.normalizer(x[:3])
+                thermal = self.normalizer_thermal(x[3:])
+                imgs.append(torch.cat((rgb, thermal), 0))
+            images = imgs.copy()
+            del imgs
+        else:
+            images = [self.normalizer(x) for x in images]
         images = ImageList.from_tensors(images, self.backbone.size_divisibility)
         return images
 
@@ -234,8 +314,11 @@ class ProposalNetwork(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.device = torch.device(cfg.MODEL.DEVICE)
-
+        if cfg.INPUT.FORMAT == 'BGRTTT':
+            input_shape = ShapeSpec(channels=3)
+            self.backbone_2 = build_backbone(cfg, input_shape)
         self.backbone = build_backbone(cfg)
+        import pdb; pdb.set_trace()
         self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
 
         pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device).view(-1, 1, 1)
@@ -254,6 +337,7 @@ class ProposalNetwork(nn.Module):
                 The dict contains one key "proposals" whose value is a
                 :class:`Instances` with keys "proposal_boxes" and "objectness_logits".
         """
+        import pdb; pdb.set_trace()
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [self.normalizer(x) for x in images]
         images = ImageList.from_tensors(images, self.backbone.size_divisibility)
