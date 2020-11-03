@@ -4,7 +4,6 @@ from detectron2.config import get_cfg
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.data.datasets import register_coco_instances
-
 from detectron2.evaluation import FLIREvaluator, inference_on_dataset
 from detectron2.data import build_detection_test_loader
 from tools.plain_train_net import do_test
@@ -45,31 +44,12 @@ def test(cfg, dataset_name):
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
 
-#Set GPU
-torch.cuda.set_device(0)
-#GPU0: PID 7733
-#GPU1: PID 7849
 
 # get path
 dataset = 'FLIR'
-# Train path
-train_path = '../../../Datasets/'+ dataset +'/train/thermal_8_bit/'
-train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
-#train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4class.json'
-train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs.json'
-#train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations.json'
 # Validation path
 val_path = '../../../Datasets/'+ dataset +'/val/thermal_8_bit/'
 val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
-#val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4class.json'
-val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4_channel_no_dogs.json'
-print(train_json_path)
-
-# Register dataset
-dataset_train = 'FLIR_train'
-register_coco_instances(dataset_train, {}, train_json_path, train_folder)
-FLIR_metadata_train = MetadataCatalog.get(dataset_train)
-dataset_dicts_train = DatasetCatalog.get(dataset_train)
 
 # Test on validation set
 dataset_test = 'FLIR_val'
@@ -79,20 +59,11 @@ dataset_dicts_test = DatasetCatalog.get(dataset_test)
 
 model = 'faster_rcnn_R_101_FPN_3x'
 
-#files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
-
-out_folder = 'output_mid_fusion_load_thermal'
-out_model_path = os.path.join(out_folder, 'out_model_final.pth')
-if not os.path.exists(out_folder):
-    os.mkdir(out_folder)
-
 # Create config
 cfg = get_cfg()
-cfg.OUTPUT_DIR = out_folder
 cfg.merge_from_file("./configs/FLIR-Detection/faster_rcnn_R_101_FLIR.yaml")
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
-# Open middle level fusion
-#cfg.MDOEL.BACKBONE.MIDDLE_FUSION = True
+
 # Train config
 cfg.DATASETS.TRAIN = (dataset_train,)
 cfg.DATASETS.TEST = (dataset_test, )
@@ -106,25 +77,6 @@ cfg.DATALOADER.NUM_WORKERS = 2
 cfg.SOLVER.IMS_PER_BATCH = 2
 cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
 cfg.SOLVER.MAX_ITER = 70000
-#cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-#cfg.MODEL.WEIGHTS = 'output_4_channel/good_model/out_model_iter_32000.pth' # 4 input
-#cfg.MODEL.WEIGHTS = 'output_val/good_model/out_model_iter_44000.pth' # 4 channel input
-cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
-# Pid = 978 -> gpu1
-# Pid = 27706 -> gpu0
-
-#-------------------------------------------- Get pretrained RGB parameters -------------------------------------#
-###### Parameter for 3 channel input ####
-#cfg.MODEL.BACKBONE.FREEZE_AT = 0
-cfg.INPUT.FORMAT = 'BGR'
-cfg.INPUT.NUM_IN_CHANNELS = 3
-cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
-cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
-#cfg.MODEL.BLUR_RGB = True
-cfg.MODEL.MAX_POOL_RGB = False
-#########################################
-
-#-------------------------------------------------- End --------------------------------------------------#
 
 # Set for training 6 inputs
 cfg.INPUT.FORMAT = 'BGRTTT'
@@ -132,9 +84,6 @@ cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 cfg.MODEL.WEIGHTS = "output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
-#cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
 
-#print("Start evaluating trianing ...")
-#test(cfg, dataset_train)
 print("Start evaluating testing ...")
 test(cfg, dataset_test)

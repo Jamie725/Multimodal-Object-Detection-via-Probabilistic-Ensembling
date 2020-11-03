@@ -31,7 +31,7 @@ class GeneralizedRCNN(nn.Module):
         super().__init__()
 
         self.device = torch.device(cfg.MODEL.DEVICE)
-        #self.backbone_2 == None
+        self.backbone_2 = None
         #Jamie
         if cfg.INPUT.NUM_IN_CHANNELS != 3:
             if cfg.INPUT.FORMAT == 'BGRTTT':
@@ -176,7 +176,7 @@ class GeneralizedRCNN(nn.Module):
         """
         if not self.training:
             return self.inference(batched_inputs)
-
+        
         images = self.preprocess_image(batched_inputs)
         if "instances" in batched_inputs[0]:
             gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
@@ -244,6 +244,7 @@ class GeneralizedRCNN(nn.Module):
         assert not self.training
 
         images = self.preprocess_image(batched_inputs)
+        
         if self.backbone_2:
             RGB_tensor = images.tensor[:,:3,:,:]
             thermal_tensor = images.tensor[:,3:,:,:]

@@ -60,7 +60,7 @@ _C.INPUT.MIN_SIZE_TEST = 800
 _C.INPUT.MAX_SIZE_TEST = 1333
 
 # `True` if cropping is used for data augmentation during training
-_C.INPUT.CROP = CN({"ENABLED": False})
+_C.INPUT.CROP = CN({"ENABLED": True}) # default False
 # Cropping type:
 # - "relative" crop (H * CROP.SIZE[0], W * CROP.SIZE[1]) part of an input of size (H, W)
 # - "relative_range" uniformly sample relative crop size from between [CROP.SIZE[0], [CROP.SIZE[1]].
@@ -559,7 +559,7 @@ _C.TEST.KEYPOINT_OKS_SIGMAS = []
 # based on the limit established for the COCO dataset).
 _C.TEST.DETECTIONS_PER_IMAGE = 100
 
-_C.TEST.AUG = CN({"ENABLED": False})
+_C.TEST.AUG = CN({"ENABLED": True}) # Default: False
 _C.TEST.AUG.MIN_SIZES = (400, 500, 600, 700, 800, 900, 1000, 1100, 1200)
 _C.TEST.AUG.MAX_SIZE = 4000
 _C.TEST.AUG.FLIP = True

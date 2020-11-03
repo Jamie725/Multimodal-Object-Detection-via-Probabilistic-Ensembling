@@ -46,9 +46,9 @@ def test(cfg, dataset_name):
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
 
 #Set GPU
-torch.cuda.set_device(0)
-#GPU0: PID 7733
-#GPU1: PID 7849
+torch.cuda.set_device(1)
+#GPU: PID 
+
 
 # get path
 dataset = 'FLIR'
@@ -81,7 +81,7 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_mid_fusion_load_thermal'
+out_folder = 'output_mid_fusion_random_crop'
 out_model_path = os.path.join(out_folder, 'out_model_final.pth')
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
@@ -105,7 +105,7 @@ cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for th
 cfg.DATALOADER.NUM_WORKERS = 2
 cfg.SOLVER.IMS_PER_BATCH = 2
 cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
-cfg.SOLVER.MAX_ITER = 70000
+cfg.SOLVER.MAX_ITER = 50000
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
 #cfg.MODEL.WEIGHTS = 'output_4_channel/good_model/out_model_iter_32000.pth' # 4 input
 #cfg.MODEL.WEIGHTS = 'output_val/good_model/out_model_iter_44000.pth' # 4 channel input
@@ -115,7 +115,7 @@ cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
 
 #-------------------------------------------- Get pretrained RGB parameters -------------------------------------#
 ###### Parameter for 3 channel input ####
-#cfg.MODEL.BACKBONE.FREEZE_AT = 0
+cfg.MODEL.BACKBONE.FREEZE_AT = 0
 cfg.INPUT.FORMAT = 'BGR'
 cfg.INPUT.NUM_IN_CHANNELS = 3
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
@@ -153,7 +153,7 @@ param_cat = torch.cat((param_rgb, param_thr), 1)
 cfg.INPUT.FORMAT = 'BGRTTT'
 cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
-cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+cfg.MODEL.PIXEL_STD = [57.375, 57.12, 58.395, 39.881, 39.881, 39.881]
 cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
 #cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
 

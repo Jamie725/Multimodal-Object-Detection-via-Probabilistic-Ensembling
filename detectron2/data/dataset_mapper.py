@@ -37,7 +37,7 @@ class DatasetMapper:
             logging.getLogger(__name__).info("CropGen used in training: " + str(self.crop_gen))
         else:
             self.crop_gen = None
-
+        
         self.tfm_gens = utils.build_transform_gen(cfg, is_train)
 
         # fmt: off

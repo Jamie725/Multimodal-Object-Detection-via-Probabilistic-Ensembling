@@ -30,7 +30,6 @@ def draw_pr(eval_file_name, out_folder):
             mAP_all += np.mean(pr_all)
 
         mAP_all /= len(class_name)
-        pdb.set_trace()
         #print('Average Precision (AP) @[ IoU=0.50:0.95| area= all | maxDets=100 ] = ', mAP_all)
         
         # IoU = 0.5 / 0.75 results
@@ -51,7 +50,7 @@ def draw_pr(eval_file_name, out_folder):
             mAP_50 += np.mean(pr_50)
             mAP_75 += np.mean(pr_75)
             
-            print('| %.3f\t' %(np.mean(pr_50)), end='')
+            print('| %.4f\t' %(np.mean(pr_50)), end='')
 
             fig = plt.figure()
             plt.xlabel('Recall')
@@ -121,8 +120,5 @@ if __name__ == '__main__':
     out_folder = 'pr_curve/'
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
-    #if not os.path.exists(out_folder):
-        #os.mkdir(out_folder)
-    #pdb.set_trace()
-    #draw_pr('824_output_thermal_analysis/out_eval_test_10000.json', out_folder)
-    draw_pr('824/mAP/concate_2000_val.out', out_folder)
+    #draw_pr('out/mAP/concate_2000_val.out', out_folder)
+    draw_pr('out/mAP/FLIR_early_fusion_result.out', out_folder)

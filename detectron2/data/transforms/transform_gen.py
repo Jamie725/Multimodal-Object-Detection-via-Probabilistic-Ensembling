@@ -198,7 +198,7 @@ class ResizeShortestEdge(TransformGen):
             size = np.random.choice(self.short_edge_length)
         if size == 0:
             return NoOpTransform()
-
+        
         scale = size * 1.0 / min(h, w)
         if h < w:
             newh, neww = size, scale * w
@@ -210,6 +210,8 @@ class ResizeShortestEdge(TransformGen):
             neww = neww * scale
         neww = int(neww + 0.5)
         newh = int(newh + 0.5)
+        # Jamie
+        #import pdb; pdb.set_trace()
         return ResizeTransform(h, w, newh, neww, self.interp)
 
 
@@ -236,6 +238,7 @@ class RandomCrop(TransformGen):
         assert h >= croph and w >= cropw, "Shape computation in {} has bugs.".format(self)
         h0 = np.random.randint(h - croph + 1)
         w0 = np.random.randint(w - cropw + 1)
+        import pdb; pdb.set_trace()
         return CropTransform(w0, h0, cropw, croph)
 
     def get_crop_size(self, image_size):
@@ -327,6 +330,7 @@ class RandomContrast(TransformGen):
         self._init(locals())
 
     def get_transform(self, img):
+        
         w = np.random.uniform(self.intensity_min, self.intensity_max)
         return BlendTransform(src_image=img.mean(), src_weight=1 - w, dst_weight=w)
 

@@ -21,11 +21,14 @@ from detectron2.data import build_detection_train_loader
 from detectron2.data import transforms as T
 from detectron2.data import detection_utils as utils
 
-def test_during_train(trainer, dataset_name):
+def test_during_train(cfg, dataset_name, save_eval_name, save_folder):
     
+
     cfg.DATASETS.TEST = (dataset_name, )
+    trainer = DefaultTrainer(cfg)
     #predictor = DefaultPredictor(cfg)
-    evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
+    #evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
+    evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=save_folder, save_eval=True, out_eval_path=(save_folder + save_eval_name))
     #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(trainer.model, val_loader, evaluator_FLIR)
@@ -35,6 +38,7 @@ def test(cfg, dataset_name):
     cfg.DATASETS.TEST = (dataset_name, )
     predictor = DefaultPredictor(cfg)
     evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
+    pdb.set_trace()
     #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
@@ -90,108 +94,27 @@ cfg.DATASETS.TRAIN = (dataset_train,)
 cfg.DATASETS.TEST = (dataset_test, )
 #cfg.TEST.EVAL_PERIOD = 50
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512   # faster, and good enough for this toy dataset (default: 512)
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 17
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for this model
 
 ###### Performance tuning ########
-cfg.DATALOADER.NUM_WORKERS = 2
+cfg.DATALOADER.NUM_WORKERS = 0
 cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
 cfg.SOLVER.MAX_ITER = 100000
-#cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-#cfg.MODEL.WEIGHTS = 'output_4_channel/good_model/out_model_iter_32000.pth' # 4 input
-cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
-# Pid =  -> gpu1
-# Pid =  -> gpu0
-
-###### Parameter for 4 channel input ####
-#cfg.MODEL.BACKBONE.FREEZE_AT = 0
-cfg.INPUT.FORMAT = 'BGR'
-cfg.INPUT.NUM_IN_CHANNELS = 3
-cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
-cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
-#########################################
-
-# backbone.bottom_up.stem.conv1.weight
-
-os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-
-checkpoint = torch.load(cfg.MODEL.WEIGHTS)
-
-from detectron2.modeling import build_model
-model_ther = build_model(cfg)
-model_ther.load_state_dict(checkpoint['model'])
-param = list(model_ther.parameters())
-param_conv1 = param[16]
-
-param_rgb = param_conv1.clone()
-param_rgb = param_rgb.data.fill_(0)
-param_cat = torch.cat((param_rgb, param_conv1), 1)
-
-param[16] = param_cat
-del checkpoint
-del model_ther
-del param
 
 # Set for training 6 inputs
 cfg.INPUT.FORMAT = 'BGRTTT'
 cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-#cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth'
+cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
 
 eval_every_iter = 1000
 num_loops = cfg.SOLVER.MAX_ITER // eval_every_iter
 cfg.SOLVER.MAX_ITER = eval_every_iter
-trainer = DefaultTrainer(cfg)
-trainer.resume_or_load(resume=False)
-cnt = 0
+#cnt = 0
 
-#for p in trainer.model.backbone.bottom_up.stem.parameters():
-#    print('layer ', cnt, ' initialized with 0' )
-#    p.data.fill_(0)
-with torch.no_grad(): 
-    for param in trainer.model.backbone.bottom_up.stem.parameters(): 
-        param.data = param_cat
-    print('Changed the weights!')
-
-test_during_train(trainer, dataset_train)
-test_during_train(trainer, dataset_test)
-
-"""
-for idx in range(num_loops):
-    print('============== The ', idx, ' * ', eval_every_iter, ' iterations ============')    
-    
-    if idx > 0:
-        cfg.MODEL.WEIGHTS = out_model_path
-        trainer = DefaultTrainer(cfg)
-        trainer.resume_or_load(resume=False)
-        
-        out_name = 'out_model_iter_'+ str(idx*eval_every_iter) +'.pth'
-        out_model_path = os.path.join(out_folder, out_name)
-    
-    trainer.train()
-    torch.save(trainer.model.state_dict(), out_model_path)
-    #pdb.set_trace()
-
-    # Evaluation on validation set
-    test(cfg, dataset_train)
-    test(cfg, dataset_test)
-    del trainer
-    #pdb.set_trace()
-
-# Test on training set
-cfg.DATASETS.TEST = (dataset_train, )
-predictor = DefaultPredictor(cfg)
-evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='FLIR_train_eval.out')
-val_loader = build_detection_test_loader(cfg, dataset_train)
-inference_on_dataset(predictor.model, val_loader, evaluator)
-
-# Test on evaluation set
-cfg.DATASETS.TEST = (dataset_test, )
-predictor = DefaultPredictor(cfg)
-evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='FLIR_train_eval.out')
-val_loader = build_detection_test_loader(cfg, dataset_test)
-inference_on_dataset(predictor.model, val_loader, evaluator)
-"""
+#test_during_train(trainer, dataset_train)
+#test_during_train(cfg, trainer, dataset_test)
+test_during_train(cfg, dataset_test, 'FLIR_middle_fusion_result.out', 'out/mAP/')

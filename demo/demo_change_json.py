@@ -46,6 +46,7 @@ for i in range(len(images)):
         img_id = images[i]['id']
         
         while annotations[anno_cnt]['image_id'] < img_id:
+            annos_new.append(annotations[anno_cnt])
             anno_cnt += 1
         
         while annotations[anno_cnt]['image_id'] == img_id:
