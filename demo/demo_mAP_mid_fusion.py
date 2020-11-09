@@ -33,12 +33,12 @@ def test_during_train(cfg, dataset_name, save_eval_name, save_folder):
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(trainer.model, val_loader, evaluator_FLIR)
 
-def test(cfg, dataset_name):
+def test(cfg, dataset_name, save_eval_name, save_folder):
     
     cfg.DATASETS.TEST = (dataset_name, )
     predictor = DefaultPredictor(cfg)
+    evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=save_folder, save_eval=True, out_eval_path=(save_folder + save_eval_name))
     evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
-    pdb.set_trace()
     #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
@@ -77,8 +77,7 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_6_channel'
-out_model_path = os.path.join(out_folder, 'out_model_final.pth')
+out_folder = 'output_mid_fusion_1108'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
@@ -87,7 +86,6 @@ cfg = get_cfg()
 cfg.OUTPUT_DIR = out_folder
 cfg.merge_from_file("./configs/FLIR-Detection/faster_rcnn_R_101_FLIR.yaml")
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
-
 
 # Train config
 cfg.DATASETS.TRAIN = (dataset_train,)
@@ -98,7 +96,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for this model
 
 ###### Performance tuning ########
-cfg.DATALOADER.NUM_WORKERS = 0
+cfg.DATALOADER.NUM_WORKERS = 2
 cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
 cfg.SOLVER.MAX_ITER = 100000
@@ -108,7 +106,8 @@ cfg.INPUT.FORMAT = 'BGRTTT'
 cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
+#cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
+cfg.MODEL.WEIGHTS = "output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
 
 eval_every_iter = 1000
 num_loops = cfg.SOLVER.MAX_ITER // eval_every_iter
@@ -117,4 +116,5 @@ cfg.SOLVER.MAX_ITER = eval_every_iter
 
 #test_during_train(trainer, dataset_train)
 #test_during_train(cfg, trainer, dataset_test)
-test_during_train(cfg, dataset_test, 'FLIR_middle_fusion_result.out', 'out/mAP/')
+#test_during_train(cfg, dataset_test, 'FLIR_middle_fusion_result.out', 'out/mAP/')
+test(cfg, dataset_test, 'FLIR_middle_fusion_result_1.out', out_folder)
