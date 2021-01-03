@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import logging
 import torch
+import pdb
 from fvcore.nn import smooth_l1_loss
 from torch import nn
 from torch.nn import functional as F
@@ -39,7 +40,7 @@ Naming convention:
 """
 
 
-def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image):
+def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=None):
     """
     Call `fast_rcnn_inference_single_image` for all images.
 
@@ -65,17 +66,25 @@ def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, t
         kept_indices: (list[Tensor]): A list of 1D tensor of length of N, each element indicates
             the corresponding boxes/scores index in [0, Ri) from the input, for image i.
     """
-    result_per_image = [
-        fast_rcnn_inference_single_image(
-            boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image
-        )
-        for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
-    ]
+    if not class_logits == None:
+        result_per_image = [
+            fast_rcnn_inference_single_image(
+                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits
+            )
+            for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
+        ]
+    else:
+        result_per_image = [
+            fast_rcnn_inference_single_image(
+                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image
+            )
+            for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
+        ]
     return [x[0] for x in result_per_image], [x[1] for x in result_per_image]
 
 
 def fast_rcnn_inference_single_image(
-    boxes, scores, image_shape, score_thresh, nms_thresh, topk_per_image
+    boxes, scores, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits=None
 ):
     """
     Single-image inference. Return bounding-box detection results by thresholding
@@ -92,7 +101,7 @@ def fast_rcnn_inference_single_image(
     if not valid_mask.all():
         boxes = boxes[valid_mask]
         scores = scores[valid_mask]
-
+    
     scores = scores[:, :-1]
     num_bbox_reg_classes = boxes.shape[1] // 4
     # Convert to Boxes to use the `clip` function ...
@@ -105,6 +114,7 @@ def fast_rcnn_inference_single_image(
     # R' x 2. First column contains indices of the R predictions;
     # Second column contains indices of classes.
     filter_inds = filter_mask.nonzero()
+    
     if num_bbox_reg_classes == 1:
         boxes = boxes[filter_inds[:, 0], 0]
     else:
@@ -121,6 +131,12 @@ def fast_rcnn_inference_single_image(
     result.pred_boxes = Boxes(boxes)
     result.scores = scores
     result.pred_classes = filter_inds[:, 1]
+    # Jamie
+    # Save out logits
+    if not class_logits == None:
+        class_logits = class_logits[filter_inds[:,0]]
+        result.class_logits = class_logits[keep]
+
     return result, filter_inds[:, 0]
 
 
@@ -137,6 +153,7 @@ class FastRCNNOutputs(object):
         pred_proposal_deltas,
         proposals,
         smooth_l1_beta=0,
+        output_pred_logits=False,
     ):
         """
         Args:
@@ -166,6 +183,7 @@ class FastRCNNOutputs(object):
         self.pred_proposal_deltas = pred_proposal_deltas
         self.smooth_l1_beta = smooth_l1_beta
         self.image_shapes = [x.image_size for x in proposals]
+        self.enable_output_pred_logits = output_pred_logits
 
         if len(proposals):
             box_type = type(proposals[0].proposal_boxes)
@@ -193,6 +211,7 @@ class FastRCNNOutputs(object):
         bg_class_ind = self.pred_class_logits.shape[1] - 1
 
         fg_inds = (self.gt_classes >= 0) & (self.gt_classes < bg_class_ind)
+        pdb.set_trace()
         num_fg = fg_inds.nonzero().numel()
         fg_gt_classes = self.gt_classes[fg_inds]
         fg_pred_classes = pred_classes[fg_inds]
@@ -298,10 +317,21 @@ class FastRCNNOutputs(object):
         num_pred = len(self.proposals)
         B = self.proposals.tensor.shape[1]
         K = self.pred_proposal_deltas.shape[1] // B
+        #import pdb; pdb.set_trace()
+        """
         boxes = self.box2box_transform.apply_deltas(
             self.pred_proposal_deltas.view(num_pred * K, B),
             self.proposals.tensor.unsqueeze(1).expand(num_pred, K, B).reshape(-1, B),
         )
+        """
+        try:
+            boxes = self.box2box_transform.apply_deltas(
+                self.pred_proposal_deltas.view(num_pred * K, B),
+                self.proposals.tensor.unsqueeze(1).expand(num_pred, K, B).reshape(-1, B),
+            )
+        except:
+            import pdb; pdb.set_trace()
+        
         return boxes.view(num_pred, K * B)
 
     """
@@ -375,10 +405,15 @@ class FastRCNNOutputs(object):
         boxes = self.predict_boxes()
         scores = self.predict_probs()
         image_shapes = self.image_shapes
-
-        return fast_rcnn_inference(
-            boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image
-        )
+        #pdb.set_trace()
+        if self.enable_output_pred_logits:
+            return fast_rcnn_inference(
+                boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=self.pred_class_logits
+            )
+        else:
+            return fast_rcnn_inference(
+                boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image
+            )
 
 
 class FastRCNNOutputLayers(nn.Module):
@@ -399,6 +434,7 @@ class FastRCNNOutputLayers(nn.Module):
         test_score_thresh=0.0,
         test_nms_thresh=0.5,
         test_topk_per_image=100,
+        enable_output_logits=False,
     ):
         """
         Args:
@@ -432,6 +468,7 @@ class FastRCNNOutputLayers(nn.Module):
         self.test_score_thresh = test_score_thresh
         self.test_nms_thresh = test_nms_thresh
         self.test_topk_per_image = test_topk_per_image
+        self.enable_output_logits = enable_output_logits
 
     @classmethod
     def from_config(cls, cfg, input_shape):
@@ -444,7 +481,8 @@ class FastRCNNOutputLayers(nn.Module):
             "smooth_l1_beta"        : cfg.MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA,
             "test_score_thresh"     : cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST,
             "test_nms_thresh"       : cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST,
-            "test_topk_per_image"   : cfg.TEST.DETECTIONS_PER_IMAGE
+            "test_topk_per_image"   : cfg.TEST.DETECTIONS_PER_IMAGE,
+            "enable_output_logits"  : cfg.MODEL.ROI_BOX_HEAD.OUTPUT_LOGITS,
             # fmt: on
         }
 
@@ -458,6 +496,7 @@ class FastRCNNOutputLayers(nn.Module):
             x = torch.flatten(x, start_dim=1)
         scores = self.cls_score(x)
         proposal_deltas = self.bbox_pred(x)
+        #import pdb; pdb.set_trace()
         return scores, proposal_deltas
 
     # TODO: move the implementation to this class.
@@ -475,9 +514,14 @@ class FastRCNNOutputLayers(nn.Module):
 
     def inference(self, predictions, proposals):
         scores, proposal_deltas = predictions
-        return FastRCNNOutputs(
-            self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta
-        ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image)
+        if self.enable_output_logits:
+            return FastRCNNOutputs(
+                self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta, output_pred_logits=self.enable_output_logits,
+            ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image)
+        else:
+            return FastRCNNOutputs(
+                self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta,
+            ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image)
 
     def predict_boxes_for_gt_classes(self, predictions, proposals):
         scores, proposal_deltas = predictions

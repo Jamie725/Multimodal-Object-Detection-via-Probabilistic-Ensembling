@@ -16,7 +16,6 @@ import cv2
 import os
 import pdb
 import torch
-import pdb
 from detectron2.data import build_detection_train_loader
 from detectron2.data import transforms as T
 from detectron2.data import detection_utils as utils
@@ -47,8 +46,9 @@ def test(cfg, dataset_name):
 
 #Set GPU
 torch.cuda.set_device(0)
-#GPU: PID 1020
-
+#GPU: [7] 23006
+# Pid = 16014 -> gpu1
+# Pid = 27706 -> gpu0
 
 # get path
 dataset = 'FLIR'
@@ -81,7 +81,7 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_mid_fusion_3_class_1'
+out_folder = 'output_mid_fusion_3_class_load_workable_freeze_most_param_0103_1'
 out_model_path = os.path.join(out_folder, 'out_model_final.pth')
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
@@ -111,54 +111,55 @@ cfg.SOLVER.MAX_ITER = 50000
 #cfg.MODEL.WEIGHTS = 'output_val/good_model/out_model_iter_44000.pth' # 4 channel input
 #cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
 #cfg.MODEL.WEIGHTS = 'good_model/3_class/thermal_only/out_model_iter_15000.pth'
-# Pid = 16014 -> gpu1
-# Pid = 27706 -> gpu0
 
 #-------------------------------------------- Get pretrained RGB parameters -------------------------------------#
 ###### Parameter for RGB channel input ####
-cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
 cfg.MODEL.BACKBONE.FREEZE_AT = 0
-cfg.INPUT.FORMAT = 'BGR'
-cfg.INPUT.NUM_IN_CHANNELS = 3
-cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
-cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
+cfg.INPUT.FORMAT = 'BGRTTT'
+cfg.INPUT.NUM_IN_CHANNELS = 6 #4
+cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
+cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.BLUR_RGB = True
 cfg.MODEL.MAX_POOL_RGB = False
 #########################################
-
-# backbone.bottom_up.stem.conv1.weight
-os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-
-from detectron2.modeling import build_model
-model_ther = build_model(cfg)
-param_thr = list(model_ther.backbone.bottom_up.stem.parameters())
-param_thr = param_thr[0]
-param_backbone = list(model_ther.backbone.parameters())
-param_roi = list(model_ther.roi_heads.parameters())
-param_rpn_head = list(model_ther.proposal_generator.rpn_head.parameters())
-#param_rpn_object = torch.cat((param_rpn_head[2], param_rpn_head[2]), 1)
-#param_rpn_anchor_delta = torch.cat((param_rpn_head[4], param_rpn_head[4]), 1)
-
-del model_ther
-########### Parameters for thermal ##############
 # Get thermal weights
-cfg.MODEL.WEIGHTS = 'good_model/3_class/thermal_only/out_model_iter_15000.pth'
-#cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth'
-model_ther = build_model(cfg)
-param_backbone_2 = list(model_ther.backbone.parameters())
-del model_ther
-#-------------------------------------------------- End --------------------------------------------------#
-# for 6 inputs
-param_rgb = param_thr.clone()
-param_rgb = param_rgb.data.fill_(0)
-param_cat = torch.cat((param_rgb, param_thr), 1)
+cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
+checkpoint = torch.load(cfg.MODEL.WEIGHTS)
+rm_name_list = ['roi_heads.box_predictor.cls_score.weight', 'roi_heads.box_predictor.cls_score.bias', 'roi_heads.box_predictor.bbox_pred.weight', 'roi_heads.box_predictor.bbox_pred.bias']
+pretrained_dict = {}
+for name, param in checkpoint.items():
+    if name in rm_name_list:
+        if 'cls_score.weight' in name:
+            param_new = torch.zeros((4, param.shape[1]))
+            param_new[:3,:] = param[:3,:]
+            param_new[-1,:] = param[-1,:]
+            pretrained_dict[name] = param_new
+        elif 'cls_score.bias' in name:
+            param_new = torch.zeros(4)
+            param_new[:3] = param[:3]
+            param_new[-1] = param[-1]
+            pretrained_dict[name] = param_new
+        elif 'bbox_pred.weight' in name:
+            param_new = torch.zeros((12, param.shape[1]))
+            param_new[:9,:] = param[:9,:]
+            param_new[-4:,:] = param[-4:,:]
+            pretrained_dict[name] = param_new
+        elif 'bbox_pred.bias' in name:
+            param_new = torch.zeros(12)
+            param_new[:9] = param[:9]
+            param_new[-4:] = param[-4:]
+            pretrained_dict[name] = param_new
+    else:
+        pretrained_dict[name] = param
+del checkpoint
+########### Parameters for thermal ##############
 
 # Set for training 6 inputs
 cfg.INPUT.FORMAT = 'BGRTTT'
 cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
+#cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
 #cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
 
 eval_every_iter = 1000
@@ -167,31 +168,43 @@ cfg.SOLVER.MAX_ITER = eval_every_iter
 trainer = DefaultTrainer(cfg)
 trainer.resume_or_load(resume=False)
 cnt = 0
-#for p in trainer.model.backbone.bottom_up.stem.parameters():
-#    print('layer ', cnt, ' initialized with 0' )
-#    p.data.fill_(0)
 
-with torch.no_grad():
-    """
-    trainer.model.proposal_generator.rpn_head.conv.weight = param_rpn_head[0]
-    trainer.model.proposal_generator.rpn_head.conv.bias = param_rpn_head[1]
-    trainer.model.proposal_generator.rpn_head.objectness_logits.weight = torch.nn.Parameter(torch.cat((param_rpn_head[2], param_rpn_head[2]), 1))
-    trainer.model.proposal_generator.rpn_head.anchor_deltas.weight = torch.nn.Parameter(torch.cat((param_rpn_head[4], param_rpn_head[4]), 1))
-    trainer.model.roi_heads.box_head.fc1.weight = torch.nn.Parameter(torch.cat((param_roi[0], param_roi[0]), 1))
-    """
-    trainer.model.backbone.weight = param_backbone
-    trainer.model.backbone_2.weight = param_backbone_2
-    trainer.model.backbone.bottom_up.stem.weight = param_cat
-    print("----Done!!---")
-del param_backbone, param_backbone_2, param_rpn_head, param_roi, param_rgb, param_thr, param_cat
+# Load pretrained model parameters
+trainer.model.load_state_dict(pretrained_dict)
+out_model_path = os.path.join(out_folder, 'out_model_iter_'+ str(eval_every_iter) +'.pth')
+del pretrained_dict
 
-for idx in range(num_loops):
+#params = trainer.model.roi_heads.state_dict()
+for name, param in trainer.model.named_parameters():
+    if name in rm_name_list:
+        param.requires_grad = True
+    else:
+        param.requires_grad = False
+        #pdb.set_trace()
+
+#pdb.set_trace()
+
+"""
+for p in trainer.model.parameters():
+    p.requires_grad = False
+    
+for p in trainer.model.roi_heads.parameters():
+    pdb.set_trace()
+    p.requires_grad = True
+"""
+for idx in range(1, num_loops):
     print('============== The ', idx, ' * ', eval_every_iter, ' iterations ============')    
     
-    if idx > 0:
+    if idx > 1:
         cfg.MODEL.WEIGHTS = out_model_path
         trainer = DefaultTrainer(cfg)
         trainer.resume_or_load(resume=False)
+
+        for name, param in trainer.model.named_parameters():
+            if name in rm_name_list:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
         
         out_name = 'out_model_iter_'+ str(idx*eval_every_iter) +'.pth'
         out_model_path = os.path.join(out_folder, out_name)
@@ -205,7 +218,6 @@ for idx in range(num_loops):
     test(cfg, dataset_test)
     del trainer
     #pdb.set_trace()
-
 
 # Test on training set
 cfg.DATASETS.TEST = (dataset_train, )

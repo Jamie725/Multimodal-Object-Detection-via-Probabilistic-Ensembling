@@ -60,7 +60,7 @@ _C.INPUT.MIN_SIZE_TEST = 800
 _C.INPUT.MAX_SIZE_TEST = 1333
 
 # `True` if cropping is used for data augmentation during training
-_C.INPUT.CROP = CN({"ENABLED": True}) # default False
+_C.INPUT.CROP = CN({"ENABLED": False}) # default False
 # Cropping type:
 # - "relative" crop (H * CROP.SIZE[0], W * CROP.SIZE[1]) part of an input of size (H, W)
 # - "relative_range" uniformly sample relative crop size from between [CROP.SIZE[0], [CROP.SIZE[1]].
@@ -305,6 +305,7 @@ _C.MODEL.ROI_BOX_HEAD.NORM = ""
 _C.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG = False
 # If true, RoI heads use bounding boxes predicted by the box head rather than proposal boxes.
 _C.MODEL.ROI_BOX_HEAD.TRAIN_ON_PRED_BOXES = False
+_C.MODEL.ROI_BOX_HEAD.OUTPUT_LOGITS = False
 
 # ---------------------------------------------------------------------------- #
 # Cascaded Box Head

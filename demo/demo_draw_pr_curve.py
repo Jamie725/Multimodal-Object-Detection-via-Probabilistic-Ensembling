@@ -46,7 +46,6 @@ def draw_pr(eval_file_name, out_folder):
             title_name = class_name[id] + ' Precision Recall'
             pr_50 = coco_eval.eval['precision'][0,:,class_id[id],0,2]
             pr_75 = coco_eval.eval['precision'][5,:,class_id[id],0,2]
-
             mAP_50 += np.mean(pr_50)
             mAP_75 += np.mean(pr_75)
             
@@ -121,4 +120,5 @@ if __name__ == '__main__':
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
     #draw_pr('out/mAP/concate_2000_val.out', out_folder)
-    draw_pr('out/mAP/FLIR_early_fusion_result.out', out_folder)
+    #draw_pr('out/mAP/FLIR_early_fusion_result.out', out_folder)
+    draw_pr('out/mAP/FLIR_Baysian_Day.out', out_folder)

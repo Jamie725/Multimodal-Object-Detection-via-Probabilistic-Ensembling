@@ -394,7 +394,7 @@ class Res5ROIHeads(ROIHeads):
             [features[f] for f in self.in_features], proposal_boxes
         )
         predictions = self.box_predictor(box_features.mean(dim=[2, 3]))
-
+        #import pdb;pdb.set_trace()
         if self.training:
             del features
             losses = self.box_predictor.losses(predictions, proposals)
@@ -409,10 +409,12 @@ class Res5ROIHeads(ROIHeads):
                 mask_features = box_features[torch.cat(fg_selection_masks, dim=0)]
                 del box_features
                 losses.update(self.mask_head(mask_features, proposals))
+            import pdb; pdb.set_trace()
             return [], losses
         else:
             pred_instances, _ = self.box_predictor.inference(predictions, proposals)
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            import pdb; pdb.set_trace()
             return pred_instances, {}
 
     def forward_with_given_boxes(self, features, instances):
@@ -564,6 +566,7 @@ class StandardROIHeads(ROIHeads):
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            #import pdb; pdb.set_trace()
             return pred_instances, {}
 
     def forward_with_given_boxes(
@@ -612,12 +615,13 @@ class StandardROIHeads(ROIHeads):
             In training, a dict of losses.
             In inference, a list of `Instances`, the predicted instances.
         """
+        
         features = [features[f] for f in self.in_features]
         box_features = self.box_pooler(features, [x.proposal_boxes for x in proposals])
         box_features = self.box_head(box_features)
         predictions = self.box_predictor(box_features)
         del box_features
-
+        #import pdb;pdb.set_trace()
         if self.training:
             if self.train_on_pred_boxes:
                 with torch.no_grad():
@@ -629,6 +633,7 @@ class StandardROIHeads(ROIHeads):
             return self.box_predictor.losses(predictions, proposals)
         else:
             pred_instances, _ = self.box_predictor.inference(predictions, proposals)
+            #import pdb; pdb.set_trace()
             return pred_instances
 
     def _forward_mask(

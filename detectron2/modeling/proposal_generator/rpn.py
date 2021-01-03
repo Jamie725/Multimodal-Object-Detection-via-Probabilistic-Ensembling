@@ -173,6 +173,9 @@ class RPN(nn.Module):
             # joint training with roi heads. This approach ignores the derivative
             # w.r.t. the proposal boxes’ coordinates that are also network
             # responses, so is approximate.
+            import math
+            if math.isnan(outputs.predict_proposals()[0][0][0][0]):
+                import pdb; pdb.set_trace()
             proposals = find_top_rpn_proposals(
                 outputs.predict_proposals(),
                 outputs.predict_objectness_logits(),

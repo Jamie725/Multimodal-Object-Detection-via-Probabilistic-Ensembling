@@ -114,13 +114,14 @@ class FLIREvaluator(DatasetEvaluator):
             if "instances" in output:
                 instances = output["instances"].to(self._cpu_device)
                 prediction["instances"] = instances_to_coco_json(instances, input["image_id"])
+            
             if "proposals" in output:
                 prediction["proposals"] = output["proposals"].to(self._cpu_device)
             
             self._predictions.append(prediction)
         
 
-    def evaluate(self):
+    def evaluate(self, out_eval_path=''):
         if self._distributed:
             comm.synchronize()
             self._predictions = comm.gather(self._predictions, dst=0)
@@ -143,12 +144,14 @@ class FLIREvaluator(DatasetEvaluator):
         if "proposals" in self._predictions[0]:
             self._eval_box_proposals()
         if "instances" in self._predictions[0]:
-            self._eval_predictions(set(self._tasks))
-        
+            if out_eval_path:
+                self._eval_predictions(set(self._tasks), out_eval_path=out_eval_path)
+            else:
+                self._eval_predictions(set(self._tasks))
         # Copy so the caller can do whatever with results
         return copy.deepcopy(self._results)
   
-    def _eval_predictions(self, tasks):
+    def _eval_predictions(self, tasks, out_eval_path=''):
         """
         Evaluate self._predictions on the given tasks.
         Fill self._results with the metrics of the tasks.
@@ -307,7 +310,7 @@ class FLIREvaluator(DatasetEvaluator):
         results.update({"AP-" + name: ap for name, ap in results_per_category})
         return results
 
-
+# ======================================== #
 def instances_to_coco_json(instances, img_id):
     """
     Dump an "Instances" object to a COCO-format json that's used for evaluation.
@@ -331,7 +334,7 @@ def instances_to_coco_json(instances, img_id):
     boxes = boxes.tolist()
     scores = instances.scores.tolist()
     classes = instances.pred_classes.tolist()
-
+    
     has_mask = instances.has("pred_masks")
     if has_mask:
         # use RLE to encode the masks, because they are too large and takes memory

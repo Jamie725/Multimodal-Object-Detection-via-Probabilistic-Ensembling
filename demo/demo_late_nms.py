@@ -113,6 +113,7 @@ def apply_nms_and_evaluate(evaluator, RGB_det, thermal_det):
         proposals.pred_classes = out_class
         out_info['instances'] = proposals
         outputs.append(out_info)
+        pdb.set_trace()
         evaluator.process(inputs, outputs)
     
     results = evaluator.evaluate()
@@ -134,7 +135,7 @@ box_coord (tuple): a tuple containing x0, y0, x1, y1 coordinates, where x0 and y
 
 if __name__ == '__main__':
     data_set = 'val'
-    data_folder = 'out/mAP/'
+    data_folder = 'out/box_predictions/'
     dataset = 'FLIR'
     IOU = 50
     RGB_det_file = data_folder + data_set + '_RGB_predictions_IOU' + str(IOU) + '.json'

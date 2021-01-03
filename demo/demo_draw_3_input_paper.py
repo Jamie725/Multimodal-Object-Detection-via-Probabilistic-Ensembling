@@ -18,7 +18,7 @@ train_or_val = 'val'
 path = '../../../Datasets/'+ dataset +'/'+train_or_val+'/RGB/'
 
 files_names = [f for f in listdir(path) if isfile(join(path, f))]
-out_folder = 'out/img/RGB_results/'
+out_folder = 'out/img/thermal_only_results_paper'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
@@ -48,7 +48,7 @@ predictor = DefaultPredictor(cfg)
 
 for i in range(len(files_names)):
     # get image
-    files_names[i] = 'FLIR_09085.jpg'
+    files_names[i] = 'FLIR_09436.jpg'
     path_t = '../../../Datasets/'+ dataset +'/'+train_or_val+'/thermal_8_bit/'
     file_img = path_t + files_names[i].split(".")[0] + '.jpeg'
     img_t = cv2.imread(file_img)
@@ -61,15 +61,22 @@ for i in range(len(files_names)):
     
     # Make prediction
     outputs = predictor(img_t)
-    name = files_names[i].split('.')[0] + '.jpg'
+    name = files_names[i].split('.')[0] + '_thermal_only.jpg'
     #print('name = ', files_names[i])
     out_name = out_folder +'/'+ name
-    #out_name = 'FLIR_08743_thermal.jpg'
+    print(outputs)
+    pdb.set_trace()
+    num_box = len(outputs['instances']._fields['pred_boxes'])
+    for j in range(num_box):
+        bbox = outputs['instances']._fields['pred_boxes'][j].tensor.cpu().numpy()
+        img_t = cv2.rectangle(img_t, (bbox[0][0], bbox[0][1]), (bbox[0][2],bbox[0][3]), (0,255,0), 2)
     print(out_name)
+    
+    cv2.imwrite(out_name, img_t)
 
-    v = Visualizer(img_t[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
-    v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+    #v = Visualizer(img_t[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
+    #v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
     #cv2.imshow('img_t',v.get_image()[:, :, ::-1])
     #cv2.waitKey(0)
-    v.save(out_name)
+    #v.save(out_name)
     #pdb.set_trace()

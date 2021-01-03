@@ -131,10 +131,13 @@ def find_top_rpn_proposals(
 
         valid_mask = torch.isfinite(boxes.tensor).all(dim=1) & torch.isfinite(scores_per_img)
         if not valid_mask.all():
-            if training:
-                raise FloatingPointError(
-                    "Predicted boxes or scores contain Inf/NaN. Training has diverged."
-                )
+            try:
+                if training:
+                    raise FloatingPointError(
+                        "Predicted boxes or scores contain Inf/NaN. Training has diverged."
+                    )
+            except:
+                import pdb; pdb.set_trace()
             boxes = boxes[valid_mask]
             scores_per_img = scores_per_img[valid_mask]
             lvl = lvl[valid_mask]

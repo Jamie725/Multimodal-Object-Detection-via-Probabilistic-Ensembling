@@ -35,35 +35,37 @@ def test(cfg, dataset_name):
     cfg.DATASETS.TEST = (dataset_name, )
     predictor = DefaultPredictor(cfg)
     #evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
-    out_name = out_folder+'FLIR_thermal_only_result.out'
+    out_name = out_folder+'FLIR_thermal_only_result_1.out'
     evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path=out_name)
     #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
 #Set GPU
-torch.cuda.set_device(1)
+torch.cuda.set_device(0)
 
 # get path
 dataset = 'FLIR'
-out_folder = 'out/mAP/'
+out_folder = 'out/box_predictions'
 
 # Train path
 train_path = '../../../Datasets/'+ dataset +'/train/thermal_8_bit/'
 train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
 #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_small.json'
-train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs.json'
+train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_3_channel_no_dogs.json'
 # Validation path
 val_path = '../../../Datasets/'+ dataset +'/val/thermal_8_bit/'
 val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
 #val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_new.json'
-val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4_channel_no_dogs.json'
+val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_3_channel_no_dogs.json'#thermal_annotations_4_channel_no_dogs.json'
+#thermal_annotations_4_channel_no_dogs_Day.json
 
+"""
 # Register dataset
 dataset = 'FLIR_train'
 register_coco_instances(dataset, {}, train_json_path, train_folder)
 FLIR_metadata = MetadataCatalog.get(dataset)
 dataset_dicts = DatasetCatalog.get(dataset)
-
+"""
 model = 'faster_rcnn_R_101_FPN_3x'
 
 # Create config
@@ -73,18 +75,11 @@ cfg.OUTPUT_DIR = out_folder
 cfg.merge_from_file("./configs/COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml")
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.MODEL.WEIGHTS = "good_model/thermal_only/model_0009999.pth"
+cfg.MODEL.WEIGHTS = "good_model/3_class/thermal_only/out_model_iter_15000.pth"
 
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 17
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 cfg.DATASETS.TEST = (dataset, )
-"""
-### 4 Channel input ###
-cfg.INPUT.FORMAT = 'BGRT'
-cfg.INPUT.NUM_IN_CHANNELS = 4
-cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438]
-cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
-#######################
-"""
+
 ### 3 Channel input ###
 cfg.INPUT.FORMAT = 'BGR'
 cfg.INPUT.NUM_IN_CHANNELS = 3

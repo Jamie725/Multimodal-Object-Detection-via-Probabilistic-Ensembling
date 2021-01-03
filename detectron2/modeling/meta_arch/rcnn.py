@@ -39,19 +39,20 @@ class GeneralizedRCNN(nn.Module):
                 self.backbone_2 = build_backbone(cfg, input_shape)
             else:    
                 input_shape = ShapeSpec(channels=cfg.INPUT.NUM_IN_CHANNELS)
+                
             # Jamie
             #if cfg.INPUT.FORMAT = 'BGRTTT':
             #    self.backbone =
             self.backbone = build_backbone(cfg, input_shape)
             num_channels = cfg.INPUT.NUM_IN_CHANNELS
             #Jamie
-            #import pdb; pdb.set_trace()
             print(num_channels,' channel input')
         
         else:
             print('3 channel input')
             self.backbone = build_backbone(cfg)
             num_channels = len(cfg.MODEL.PIXEL_MEAN)
+            #import pdb; pdb.set_trace()
         
         if cfg.INPUT.FORMAT == 'BGRTTT':
             output_shape = {}
@@ -148,9 +149,8 @@ class GeneralizedRCNN(nn.Module):
         import pdb; pdb.set_trace()
         ft_map = input_features['p2']
         gaussian_blur(ft_map,(filter_size,filter_size), (sigma,sigma))
-
-
-        return
+        return None
+        
     def forward(self, batched_inputs):
         """
         Args:

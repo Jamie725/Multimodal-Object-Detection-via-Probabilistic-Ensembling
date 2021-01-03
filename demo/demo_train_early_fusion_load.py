@@ -8,7 +8,7 @@ from detectron2.data.datasets import register_coco_instances
 from detectron2.evaluation import FLIREvaluator, inference_on_dataset
 from detectron2.data import build_detection_test_loader
 from tools.plain_train_net import do_test
-
+from detectron2.config import CfgNode as CN
 from os import listdir
 from os.path import isfile, join
 import numpy as np
@@ -21,44 +21,31 @@ from detectron2.data import build_detection_train_loader
 from detectron2.data import transforms as T
 from detectron2.data import detection_utils as utils
 
-def test_during_train(cfg, dataset_name, save_eval_name, save_folder):
-    
-
+def test_during_train(trainer, dataset_name):
     cfg.DATASETS.TEST = (dataset_name, )
-    trainer = DefaultTrainer(cfg)
-    #predictor = DefaultPredictor(cfg)
-    #evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
-    evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=save_folder, save_eval=True, out_eval_path=(save_folder + save_eval_name))
-    #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
+    evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(trainer.model, val_loader, evaluator_FLIR)
 
-def test(cfg, dataset_name, save_eval_name, save_folder):
+def test(cfg, dataset_name):
     
     cfg.DATASETS.TEST = (dataset_name, )
     predictor = DefaultPredictor(cfg)
-    evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=save_folder, save_eval=True, out_eval_path=(save_folder + save_eval_name))
     evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
-    #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
-
-#Set GPU
-torch.cuda.set_device(1)
 
 # get path
 dataset = 'FLIR'
 # Train path
 train_path = '../../../Datasets/'+ dataset +'/train/thermal_8_bit/'
 train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
-#train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4class.json'
-train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs.json'
-#train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations.json'
+train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs_3_class.json'
+
 # Validation path
 val_path = '../../../Datasets/'+ dataset +'/val/thermal_8_bit/'
 val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
-#val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4class.json'
-val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4_channel_no_dogs.json'
+val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4_channel_no_dogs_3_class.json'
 print(train_json_path)
 
 # Register dataset
@@ -77,7 +64,8 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_mid_fusion_1108'
+out_folder = 'output_early_fusion_3_class_cont'
+out_model_path = os.path.join(out_folder, 'out_model_final.pth')
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
@@ -97,24 +85,37 @@ cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for th
 
 ###### Performance tuning ########
 cfg.DATALOADER.NUM_WORKERS = 2
-cfg.SOLVER.IMS_PER_BATCH = 4
-cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
-cfg.SOLVER.MAX_ITER = 1000
-
-# Set for training 6 inputs
-cfg.INPUT.FORMAT = 'BGRTTT'
-cfg.INPUT.NUM_IN_CHANNELS = 6 #4
-cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
-cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-#cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
-cfg.MODEL.WEIGHTS = 'good_model/3_class/mid_fusion/out_model_iter_1000.pth'#"output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
-
+cfg.SOLVER.IMS_PER_BATCH = 2
+cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
+cfg.SOLVER.MAX_ITER = 50000
+# Set GPU
+torch.cuda.set_device(1)
+cfg.MODEL.WEIGHTS = 'good_model/3_class/early_fusion/out_model_iter_19000.pth'
+# Pid = 15770 -> gpu0
 eval_every_iter = 1000
 num_loops = cfg.SOLVER.MAX_ITER // eval_every_iter
 cfg.SOLVER.MAX_ITER = eval_every_iter
-#cnt = 0
+trainer = DefaultTrainer(cfg)
+trainer.resume_or_load(resume=False)
+cnt = 0
 
-#test_during_train(trainer, dataset_train)
-#test_during_train(cfg, trainer, dataset_test)
-#test_during_train(cfg, dataset_test, 'FLIR_middle_fusion_result.out', 'out/mAP/')
-test(cfg, dataset_test, 'FLIR_middle_fusion_result_1.out', out_folder)
+for idx in range(num_loops):
+    print('============== The ', idx, ' * ', eval_every_iter, ' iterations ============')    
+    
+    if idx > 0:
+        cfg.MODEL.WEIGHTS = out_model_path
+        cfg.MODEL.BACKBONE.FREEZE_AT = 0
+        trainer = DefaultTrainer(cfg)
+        trainer.resume_or_load(resume=False)
+        
+        out_name = 'out_model_iter_'+ str(idx*eval_every_iter) +'.pth'
+        out_model_path = os.path.join(out_folder, out_name)
+    
+    trainer.train()
+    torch.save(trainer.model.state_dict(), out_model_path)
+    #pdb.set_trace()
+
+    # Evaluation on validation set
+    test_during_train(trainer, dataset_train)
+    test_during_train(trainer, dataset_test)
+    del trainer
