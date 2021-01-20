@@ -36,7 +36,7 @@ def test(cfg, dataset_name):
 
 # Set GPU
 torch.cuda.set_device(1)
-# [6]22831
+# [1] 20599
 
 # get path
 dataset = 'FLIR'
@@ -67,7 +67,7 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_early_fusion_3_class_load_workable_freeze_most_param_0103_1'
+out_folder = 'output_early_fusion_3_class_load_workable_freeze_most_param_0106_2'
 
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
@@ -90,8 +90,8 @@ cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for th
 ###### Performance tuning ########
 cfg.DATALOADER.NUM_WORKERS = 2
 cfg.SOLVER.IMS_PER_BATCH = 2
-cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
-cfg.SOLVER.MAX_ITER = 50000
+cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
+cfg.SOLVER.MAX_ITER = 5000
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
 
 # Pid = 4830 -> gpu0
@@ -155,7 +155,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 #cfg.MODEL.BACKBONE.FREEZE_AT = 0
 #cfg.MODEL.WEIGHTS = 'good_model/3_class/thermal_only/out_model_iter_15000.pth'
 #cfg.INPUT.CROP = CN({"ENABLED": True})
-eval_every_iter = 1000
+eval_every_iter = 100
 num_loops = cfg.SOLVER.MAX_ITER // eval_every_iter
 cfg.SOLVER.MAX_ITER = eval_every_iter
 out_model_path = os.path.join(out_folder, 'out_model_iter_'+ str(eval_every_iter) +'.pth')

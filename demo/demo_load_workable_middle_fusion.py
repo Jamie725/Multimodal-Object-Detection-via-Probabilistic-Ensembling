@@ -46,7 +46,7 @@ def test(cfg, dataset_name):
 
 #Set GPU
 torch.cuda.set_device(0)
-#GPU: [7] 23006
+#GPU: [2] 20747
 # Pid = 16014 -> gpu1
 # Pid = 27706 -> gpu0
 
@@ -81,7 +81,7 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_mid_fusion_3_class_load_workable_freeze_most_param_0103_1'
+out_folder = 'output_mid_fusion_3_class_load_workable_freeze_most_param_0106_2'
 out_model_path = os.path.join(out_folder, 'out_model_final.pth')
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
@@ -105,7 +105,7 @@ cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for th
 cfg.DATALOADER.NUM_WORKERS = 2
 cfg.SOLVER.IMS_PER_BATCH = 2
 cfg.SOLVER.BASE_LR = 0.001  # pick a good LR
-cfg.SOLVER.MAX_ITER = 50000
+cfg.SOLVER.MAX_ITER = 5000
 
 #cfg.MODEL.WEIGHTS = 'output_4_channel/good_model/out_model_iter_32000.pth' # 4 input
 #cfg.MODEL.WEIGHTS = 'output_val/good_model/out_model_iter_44000.pth' # 4 channel input
@@ -162,7 +162,7 @@ cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
 #cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth' # thermal only
 
-eval_every_iter = 1000
+eval_every_iter = 100
 num_loops = cfg.SOLVER.MAX_ITER // eval_every_iter
 cfg.SOLVER.MAX_ITER = eval_every_iter
 trainer = DefaultTrainer(cfg)

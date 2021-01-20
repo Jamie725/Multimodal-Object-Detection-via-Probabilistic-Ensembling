@@ -339,7 +339,6 @@ class Visualizer:
         labels = _create_text_labels(classes, scores, self.metadata.get("thing_classes", None))
         keypoints = predictions.pred_keypoints if predictions.has("pred_keypoints") else None
 
-        pdb.set_trace()
         # Assign colors to classes
         color = {}
         color[0] = [0,255,0]

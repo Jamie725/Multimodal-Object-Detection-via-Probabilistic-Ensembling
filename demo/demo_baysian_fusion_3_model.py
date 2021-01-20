@@ -345,12 +345,13 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
         out_img_name = 'out_img_baysian_3_model/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian_3_model.jpg'
         #cv2.imwrite(out_img_name, img)
         #pdb.set_trace()
-    
+        """
         if '09436' in file_name:
             out_img_name = 'out_img_baysian_fusion/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian_avg_bbox.jpg'
             print(Boxes(out_boxes))
             pdb.set_trace()
             cv2.imwrite(out_img_name, img)
+        """
     
     results = evaluator.evaluate(out_eval_path='FLIR_pooling_.out')
     
@@ -411,5 +412,5 @@ if __name__ == '__main__':
     det_3 = json.load(open(det_file_3, 'r'))
     evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_Day.out')
     #result = apply_late_fusion_and_evaluate(evaluator, det_1, det_2, 'nms')
-    method = 'baysian_avg_bbox'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
+    method = 'baysian_avg_bbox'#'baysian_wt_score_box'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
     result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method)

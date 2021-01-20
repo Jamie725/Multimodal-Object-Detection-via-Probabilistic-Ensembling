@@ -30,7 +30,7 @@ cfg.INPUT.FORMAT = 'BGRTTT'
 cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-cfg.MODEL.WEIGHTS = "good_model/mid_fusion/out_model_iter_42000.pth"
+cfg.MODEL.WEIGHTS = "good_model/3_class/mid_fusion/out_model_iter_100.pth"
 # -------------------------------------- #
 #Draw trained thermal
 #cfg.MODEL.WEIGHTS = os.path.join('output_val/good_model', "model_0009999.pth")

@@ -104,7 +104,7 @@ cfg.INPUT.NUM_IN_CHANNELS = 4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.MODEL.WEIGHTS = 'good_model/3_class/early_fusion/out_model_final.pth'
+cfg.MODEL.WEIGHTS = 'good_model/3_class/early_fusion/out_model_iter_100.pth'
 #cfg.MODEL.WEIGHTS = "good_model/3_class/early_fusion/out_model_iter_1000.pth"
 #cfg.MODEL.WEIGHTS = 'output_early_fusion_3_class/out_model_iter_8000.pth'
 test(cfg, dataset_test)

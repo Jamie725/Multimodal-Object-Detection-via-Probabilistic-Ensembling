@@ -49,7 +49,7 @@ for i in range(len(data['images'])):
 
 # File names
 files_names = [f for f in listdir(RGB_path) if isfile(join(RGB_path, f))]
-out_folder = 'out/box_predictions/'
+out_folder = 'out/box_predictions/3_class/'
 # Make folder if not exists
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
@@ -63,18 +63,21 @@ if data_gen == 'RGB':
     cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80
 elif data_gen == 'thermal_only':
-    cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth'
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 17
+    #cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth'
+    cfg.MODEL.WEIGHTS = 'good_model/3_class/out_model_iter_15000.pth'
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 elif data_gen == 'early_fusion':
-    cfg.MODEL.WEIGHTS = 'good_model/early_fusion/out_model_iter_12000.pth'
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 17
+    #cfg.MODEL.WEIGHTS = 'good_model/early_fusion/out_model_iter_12000.pth'
+    cfg.MODEL.WEIGHTS = 'good_model/3_class/early_fusion/out_model_iter_100.pth'
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
     cfg.INPUT.FORMAT = 'BGRT'
     cfg.INPUT.NUM_IN_CHANNELS = 4
     cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438]
     cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
 elif data_gen == 'mid_fusion':
-    cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80
+    #cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
+    cfg.MODEL.WEIGHTS = 'good_model/3_class/mid_fusion/out_model_iter_100.pth'
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
     cfg.INPUT.FORMAT = 'BGRTTT'
     cfg.INPUT.NUM_IN_CHANNELS = 6 #4
     cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
@@ -84,7 +87,7 @@ elif data_gen == 'mid_fusion':
 predictor = DefaultPredictor(cfg)
 
 valid_class = [0, 1, 2]
-out_pred_file = out_folder+data_set+'_'+data_gen+'_predictions_IOU50_Night_with_logits.json'
+out_pred_file = out_folder+data_set+'_'+data_gen+'_predictions_IOU50_3_class_Night_with_logits.json'
 out_dicts = {}
 image_dict = []
 boxes_dict = []

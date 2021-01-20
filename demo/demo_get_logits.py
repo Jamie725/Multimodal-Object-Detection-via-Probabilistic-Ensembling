@@ -179,4 +179,3 @@ predictor = DefaultPredictor(cfg)
 my_model = modularFeeding(cfg,predictor,transform_gen,normalizer,device)
 results, softmaxScoreList, logitsList, bboxFeat1, bboxFeat2 = my_model.forward(img)
 print(pred_instances)
-
