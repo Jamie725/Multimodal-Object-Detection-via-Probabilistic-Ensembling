@@ -107,7 +107,7 @@ cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
-cfg.MODEL.WEIGHTS = 'output_mid_fusion_3_class_load_workable_freeze_most_param_0106_1/out_model_iter_100.pth'#'good_model/3_class/mid_fusion/out_model_iter_1000.pth'#"output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
+cfg.MODEL.WEIGHTS = 'good_model/3_class/mid_fusion/out_model_iter_100.pth'#'good_model/3_class/mid_fusion/out_model_iter_1000.pth'#"output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
 
 eval_every_iter = 1000
 num_loops = cfg.SOLVER.MAX_ITER // eval_every_iter

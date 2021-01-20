@@ -36,10 +36,11 @@ dataset_name = 'FLIR'
 data_set = 'val'
 RGB_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/RGB/Night/'
 t_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/thermal_8_bit/'
-data_gen = 'thermal_only'#'thermal_only'#'mid_fusion'
+data_gen = 'early_fusion'#'early_fusion'#'thermal_only'#'mid_fusion'
+print('model:', data_gen)
 
 # Build image id dictionary
-val_file_name = 'thermal_annotations_4_channel_no_dogs_Night.json'#'RGB_annotations_4_channel_no_dogs.json'
+val_file_name = 'thermal_annotations_4_channel_no_dogs_Night.json'#'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_annotations_4_channel_no_dogs_Night.json'#'RGB_annotations_4_channel_no_dogs.json'
 val_json_path = '../../../Datasets/FLIR/val/' + val_file_name
 data = json.load(open(val_json_path, 'r'))
 name_to_id_dict = {}
@@ -64,7 +65,7 @@ if data_gen == 'RGB':
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80
 elif data_gen == 'thermal_only':
     #cfg.MODEL.WEIGHTS = 'output_val/good_model/model_0009999.pth'
-    cfg.MODEL.WEIGHTS = 'good_model/3_class/out_model_iter_15000.pth'
+    cfg.MODEL.WEIGHTS = 'good_model/3_class/thermal_only/out_model_iter_15000.pth'
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 elif data_gen == 'early_fusion':
     #cfg.MODEL.WEIGHTS = 'good_model/early_fusion/out_model_iter_12000.pth'
