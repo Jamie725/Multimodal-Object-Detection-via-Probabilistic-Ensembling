@@ -48,7 +48,6 @@ if __name__ == '__main__':
     rgb_path = '../../../Datasets/FLIR/' + data_set + '/resized_RGB/'
     thermal_path = '../../../Datasets/FLIR/' + data_set + '/thermal_8_bit/'
     out_folder = 'out/box_comparison/'
-    pdb.set_trace()
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
 
@@ -72,7 +71,7 @@ if __name__ == '__main__':
         t_box = thermal_det['boxes'][i]
         t_score = thermal_det['scores'][i]
         t_class = thermal_det['classes'][i]
-        pdb.set_trace()
+
         # Get RGB centers
         t_centers = []
         num_t_box = len(t_box)

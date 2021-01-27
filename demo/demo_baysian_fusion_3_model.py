@@ -368,17 +368,32 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
 
 if __name__ == '__main__':
     data_set = 'val'
-    data_folder = 'out/box_predictions/'
+    num_class = '3_class'
+    data_folder = 'out/box_predictions/'+num_class+'/'#'out/box_predictions/more_classes/'
     dataset = 'FLIR'
     IOU = 50
-    det_file_1 = data_folder + 'val_early_fusion_predictions_IOU50.json'#'val_thermal_only_predictions_IOU50_day.json'#
-    det_file_2 = data_folder + 'val_mid_fusion_predictions_IOU50.json'
-    det_file_3 = data_folder + 'val_thermal_only_predictions_IOU50.json'#'val_thermal_only_predictions_IOU50_day.json'#
+    logit = True
+    if logit:
+        if num_class == '3_class':
+            det_file_1 = data_folder + 'val_early_fusion_predictions_IOU50_3_class_with_logits.json'#'val_thermal_only_predictions_IOU50_day.json'#
+            det_file_2 = data_folder + 'val_mid_fusion_predictions_IOU50_3_class_with_logits.json'
+            det_file_3 = data_folder + 'val_thermal_only_predictions_IOU50_3_class_with_logits.json'#'val_thermal_only_predictions_IOU50_day.json'#
+        else:
+            det_file_1 = data_folder + 'val_early_fusion_predictions_IOU50_with_logits.json'
+            det_file_2 = data_folder + 'val_mid_fusion_predictions_IOU50_with_logits.json'
+            det_file_3 = data_folder + 'val_thermal_only_predictions_IOU50_with_logits.json'
+    else:
+        det_file_1 = data_folder + 'val_early_fusion_predictions_IOU50.json'#'val_thermal_only_predictions_IOU50_day.json'#
+        det_file_2 = data_folder + 'val_mid_fusion_predictions_IOU50.json'
+        det_file_3 = data_folder + 'val_thermal_only_predictions_IOU50.json'#'val_thermal_only_predictions_IOU50_day.json'#
+    print(det_file_1)
+    print(det_file_2)
+    print(det_file_3)
     path_1 = '../../../Datasets/FLIR/' + data_set + '/resized_RGB/'
     path_2 = '../../../Datasets/FLIR/' + data_set + '/thermal_8_bit/'
     out_folder = 'out/box_comparison/'
     #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs.json'
-    val_file_name = 'RGB_annotations_4_channel_no_dogs.json'#'RGB_annotations_4_channel_no_dogs.json'#'thermal_annotations_4_channel_no_dogs_Day.json'#
+    val_file_name = 'thermal_annotations_4_channel_no_dogs_3_class.json'#'RGB_annotations_4_channel_no_dogs.json'#'thermal_annotations_4_channel_no_dogs_Day.json'#
     val_json_path = '../../../Datasets/'+dataset+'/val/' + val_file_name
     val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
 
@@ -412,5 +427,5 @@ if __name__ == '__main__':
     det_3 = json.load(open(det_file_3, 'r'))
     evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_Day.out')
     #result = apply_late_fusion_and_evaluate(evaluator, det_1, det_2, 'nms')
-    method = 'baysian_avg_bbox'#'baysian_wt_score_box'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
+    method = 'baysian_wt_score_box'#'baysian_wt_score_box'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
     result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method)

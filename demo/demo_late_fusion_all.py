@@ -305,11 +305,11 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method):
 
 if __name__ == '__main__':
     data_set = 'val'
-    data_folder = 'out/box_predictions/'
+    data_folder = 'out/box_predictions/3_class/'
     dataset = 'FLIR'
     IOU = 50
     time = 'all'
-    logit = False
+    logit = True
     if time == 'Day':
         val_file_name = 'thermal_annotations_4_channel_no_dogs_Day.json'#'RGB_annotations_4_channel_no_dogs.json'#'thermal_annotations_4_channel_no_dogs_Day.json'#
         if logit:
@@ -329,12 +329,14 @@ if __name__ == '__main__':
     elif time == 'all':
         val_file_name = 'RGB_annotations_4_channel_no_dogs.json'
         if logit:
-            det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50_with_logits.json'
-            det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_with_logits.json'
+            det_file_1 = data_folder + 'val_mid_fusion_predictions_IOU50_3_class_with_logits.json'
+            det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_3_class_with_logits.json'
         else:
-            det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50.json'
+            det_file_1 = data_folder + 'val_mid_fusion_predictions_IOU50.json'
             det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50.json'
-        
+    
+    print('detection file 1:', det_file_1)
+    print('detection file 2:', det_file_2)
     #det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50.json'#'val_thermal_only_predictions_IOU50_day.json'#
     #det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50.json'
     path_1 = '../../../Datasets/FLIR/' + data_set + '/resized_RGB/'

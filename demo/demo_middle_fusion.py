@@ -195,7 +195,7 @@ for idx in range(num_loops):
         
         out_name = 'out_model_iter_'+ str(idx*eval_every_iter) +'.pth'
         out_model_path = os.path.join(out_folder, out_name)
-    
+    pdb.set_trace()
     trainer.train()
     torch.save(trainer.model.state_dict(), out_model_path)
     #pdb.set_trace()

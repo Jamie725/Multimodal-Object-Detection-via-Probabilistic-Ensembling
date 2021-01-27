@@ -1,3 +1,10 @@
+"""
+Take 3 model as input
+
+Correct multi-class Bayesian fusion
+
+Fuse multi-class probability, also perform logits summation
+"""
 import pdb
 import os
 import json
@@ -86,16 +93,20 @@ def bayesian_fusion_multiclass(match_score_vec, pred_class):
         else:
             neg_score[:,cnt] = match_score_vec[:, i]
             cnt += 1
+    
+    # Background probability
     neg_score[:,-1] = 1 - np.sum(match_score_vec, axis=1) 
+    
     log_positive_scores = np.log(pos_score)
     log_negative_scores = np.log(neg_score)
-    #pdb.set_trace()
+    
     #log_negative_scores = np.log(np.delete(match_score_vec, pred_class, 1))
     fused_positive = np.exp(np.sum(log_positive_scores))
     fused_negative = np.sum(np.exp(np.sum(log_negative_scores, axis=0)))
     out = fused_positive / (fused_positive + fused_negative)
-    return out
 
+    return out
+"""
 def nms_1(info_1, info_2):
     # RGB boxes append thermal boxes
     # Order: len(RGB) | len(thermal)
@@ -124,7 +135,38 @@ def nms_1(info_1, info_2):
     out_scores = torch.Tensor(scores[keep_id])
     out_class = torch.Tensor(classes[keep_id])
     return out_boxes, out_scores, out_class
+"""
+def nms_1(info_1, info_2, info_3=''):
+    # Boxes
+    boxes = info_1['bbox'].copy()
+    boxes.extend(info_2['bbox'])
+    # Scores
+    scores = info_1['score'].copy()
+    scores.extend(info_2['score'])
+    # Classes
+    classes = info_1['class'].copy()
+    classes.extend(info_2['class'])
+    if info_3:
+        boxes.extend(info_3['bbox'])
+        scores.extend(info_3['score'])
+        classes.extend(info_3['class'])
+    
+    classes = torch.Tensor(classes)
+    scores = torch.Tensor(scores)
+    boxes = torch.Tensor(boxes)
+    # Perform nms
+    iou_threshold = 0.5
 
+    #keep_id = box_ops.batched_nms(boxes, scores, classes, iou_threshold)
+    try:
+        keep_id = batched_nms(boxes, scores, classes, iou_threshold)
+    except:
+        pdb.set_trace()
+    # Add to output
+    out_boxes = boxes[keep_id]
+    out_scores = torch.Tensor(scores[keep_id])
+    out_class = torch.Tensor(classes[keep_id])
+    return out_boxes, out_scores, out_class
 def weighted_box_fusion(bbox, score):
     weight = score / np.sum(score)
     out_bbox = np.zeros(4)
@@ -132,7 +174,7 @@ def weighted_box_fusion(bbox, score):
         out_bbox += weight[i] * bbox[i]
     return out_bbox
 
-def prepare_data(info1, info2):
+def prepare_data(info1, info2, info3=''):
     bbox1 = np.array(info1['bbox'])
     bbox2 = np.array(info2['bbox'])
     score1 = np.array(info1['score'])
@@ -145,11 +187,23 @@ def prepare_data(info1, info2):
     out_bbox = np.concatenate((bbox1, bbox2), axis=0)
     out_score = np.concatenate((score1, score2), axis=0)
     out_class = np.concatenate((class1, class2), axis=0)
+
+    if info3:
+        bbox3 = np.array(info3['bbox'])
+        score3 = np.array(info3['score'])
+        class3 = np.array(info3['class'])
+        out_logits['3'] = np.array(info3['class_logits'])
+        out_bbox = np.concatenate((out_bbox, bbox3), axis=0)
+        out_score = np.concatenate((out_score, score3), axis=0)
+        out_class = np.concatenate((out_class, class3), axis=0)
     
     if 'prob' in info1.keys():
         prob1 = np.array(info1['prob'])
-        prob2 = np.array(info2['prob'])    
+        prob2 = np.array(info2['prob'])  
         out_prob = np.concatenate((prob1, prob2), axis=0)
+        if info3:
+            prob3 = np.array(info3['prob'])  
+            out_prob = np.concatenate((out_prob, prob3), axis=0)
         return out_bbox, out_score, out_class, out_logits, out_prob
     else:    
         return out_bbox, out_score, out_class, out_logits
@@ -234,89 +288,22 @@ def nms_bayesian(dets, scores, classes, probs, thresh, method):
 
     return keep,match_scores,match_bboxs, match_classes
 
-def handle_logits(logits):
+def handle_logits(logits, classes):
     logits1 = logits['1']
     logits2 = logits['2']
-    num_det1, num_class1 = logits1.shape
-    num_det2, num_class2 = logits2.shape
-    out_num_det = []
-    out_num_det.append(num_det1)
-    out_num_det.append(num_det2)
-    out_logits1 = logits1.copy()
-    out_logits2 = logits2.copy()
-    max_logits1 = logits1.max(axis=1)
-    max_logits2 = logits2.max(axis=1)
-    out_max_logits = np.concatenate((max_logits1, max_logits2), axis=0)
-    for i in range(3, logits1.shape[-1]-1):
-        out_logits1 = np.delete(out_logits1, 3, axis=1)
-    for i in range(3, logits2.shape[-1]-1):
-        out_logits2 = np.delete(out_logits2, 3, axis=1)
-    out_logits = np.concatenate((out_logits1, out_logits2), axis=0)
-    return out_logits, out_max_logits, out_num_det
-def handle_logits_all(logits):
-    logits1 = logits['1']
-    logits2 = logits['2']
-    num_det1, num_class1 = logits1.shape
-    num_det2, num_class2 = logits2.shape
-    out_num_det = []
-    out_num_det.append(num_det1)
-    out_num_det.append(num_det2)
-    out_logits1 = logits1.copy()
-    out_logits2 = logits2.copy()
-    max_logits1 = logits1.max(axis=1)
-    max_logits2 = logits2.max(axis=1)
-    out_max_logits = np.concatenate((max_logits1, max_logits2), axis=0)
-    return out_logits1, out_logits2, out_max_logits, out_num_det
-def handle_logits_part(logits):
-    logits1 = logits['1']
-    logits2 = logits['2']
-    num_det1, num_class1 = logits1.shape
-    num_det2, num_class2 = logits2.shape
-    out_num_det = []
-    out_num_det.append(num_det1)
-    out_num_det.append(num_det2)
-    out_logits1 = logits1.copy()
-    out_logits2 = logits2.copy()
-    max_logits1 = logits1.max(axis=1)
-    max_logits2 = logits2.max(axis=1)
-    out_max_logits = np.concatenate((max_logits1, max_logits2), axis=0)
-    for i in range(num_class1-1, logits2.shape[-1]-1):
-        out_logits2 = np.delete(out_logits2, num_class1, axis=1)
-    out_logits = np.concatenate((out_logits1, out_logits2), axis=0)
-    return out_logits, out_max_logits, out_num_det
-def handle_logits_all2(logits, classes):
-    logits1 = logits['1']
-    logits2 = logits['2']
-    num_det1, num_class1 = logits1.shape
-    num_det2, num_class2 = logits2.shape
-    class1 = classes[:num_det1]
-    class2 = classes[num_det1:]
-    out_num_det = []
-    out_num_det.append(num_det1)
-    out_num_det.append(num_det2)
-    out_logits1 = logits1.copy()
-    out_logits2 = logits2.copy()
-    max_logits1 = []
-    max_logits2 = []
-    for i in range(num_det1):
-        max_logits1.append(logits1[i,class1[i]])
-    for i in range(num_det2):
-        max_logits2.append(logits2[i,class2[i]])
-    out_max_logits = np.concatenate((max_logits1, max_logits2), axis=0)
-    out_logits = np.concatenate((out_logits1, out_logits2), axis=0)
-    return out_logits, out_max_logits, out_num_det
-def avgLogits(logits):
-    pdb.set_trace()
+    out_logits = np.concatenate((logits1, logits2), axis=0)
+    if '3' in logits.keys():
+        logits3 = logits['3']
+        out_logits = np.concatenate((out_logits, logits3), axis=0)
+    return out_logits
+
 def nms_logits(dets, scores, classes, logits, thresh, method):
     x1 = dets[:, 0] + classes * 640
     y1 = dets[:, 1] + classes * 512
     x2 = dets[:, 2] + classes * 640
     y2 = dets[:, 3] + classes * 512
-    # Get highest logit in each prediction
-    #out_logits, out_max_logits, out_num_det = handle_logits(logits)
-    #out_logits1, out_logits2, out_max_logits, out_num_det = handle_logits_all(logits)
-    out_logits, out_max_logits, out_num_det = handle_logits_all2(logits, classes)
-    #out_logits, out_max_logits, out_num_det = handle_logits_part(logits)
+    
+    out_logits = handle_logits(logits, classes)
     areas = (x2 - x1 + 1) * (y2 - y1 + 1)
     #order = out_max_logits.argsort()[::-1]
     order = scores.argsort()[::-1]
@@ -340,35 +327,18 @@ def nms_logits(dets, scores, classes, logits, thresh, method):
         inds = np.where(ovr <= thresh)[0]
         match = np.where(ovr > thresh)[0]
         match_ind = order[match+1]
-        """
-        if match_ind < out_num_det[0]:
-            match_score = list(out_logits1[match_ind])
-        else:
-            match_score = list(out_logits2[match_ind - out_num_det[0]])
-        if i < out_num_det[0]:
-            original_score = out_logits1[i]
-        else:
-            original_score = out_logits2[i- out_num_det[0]]
-        """
+
         match_score = list(out_logits[match_ind])
         match_bbox = list(dets[match_ind][:,:4])
         original_score = out_logits[i].tolist()        
         original_bbox = dets[i][:4]
         if len(match_score)>0:
             match_score += [original_score]
-            if method == 'avgLogits':
-                final_score = np.mean(np.asarray(match_score), axis=0)
-                final_score = final_score[classes[i]]
-                final_bbox = avg_bbox_fusion(match_bbox)
-                #pdb.set_trace()
-            elif method == 'avgLogits_softmax':  
+            if method == 'avgLogits_softmax':  
                 final_score = np.mean(np.asarray(match_score), axis=0)
                 final_score = F.softmax(torch.Tensor(final_score), dim=0)[classes[i]].tolist()
                 final_bbox = avg_bbox_fusion(match_bbox)
-            elif method == 'sumLogits':
-                final_score = np.sum(np.asarray(match_score), axis=0)[classes[i]]
-                final_bbox = avg_bbox_fusion(match_bbox)
-            elif method == 'sumLogits_softmax':               
+            elif method == 'sumLogits_softmax':
                 final_score = np.sum(np.asarray(match_score), axis=0)
                 final_score = F.softmax(torch.Tensor(final_score), dim=0)[classes[i]].tolist()
                 final_bbox = avg_bbox_fusion(match_bbox)
@@ -376,13 +346,10 @@ def nms_logits(dets, scores, classes, logits, thresh, method):
             match_scores.append(final_score)
             match_bboxs.append(final_bbox)
         else:
-            if method == 'avgLogits' or method == 'sumLogits':
-                match_scores.append(original_score[classes[i]])
-            elif method == 'avgLogits_softmax' or method == 'sumLogits_softmax':
-                final_score = F.softmax(torch.Tensor(original_score), dim=0)[classes[i]].tolist()
-                match_scores.append(final_score)
-                #pdb.set_trace()
-                #print('softmax')
+            final_score = F.softmax(torch.Tensor(original_score), dim=0)[classes[i]].tolist()
+            match_scores.append(final_score)
+            #pdb.set_trace()
+            #print('softmax')
             match_bboxs.append(original_bbox)
             
         #pdb.set_trace()
@@ -397,7 +364,28 @@ def nms_logits(dets, scores, classes, logits, thresh, method):
     match_scores = torch.Tensor(match_scores)
     match_classes = torch.Tensor(classes[keep])
     return keep,match_scores,match_bboxs, match_classes
-
+def fusion(method, info_1, info_2, info_3=''):
+    if method == 'nms':            
+        out_boxes, out_scores, out_class = nms_1(info_1, info_2, info_3=info_3)
+        #in_boxes, in_scores, in_class, in_logits, in_prob = prepare_data(info_1, info_2, info3=info_3)
+    elif method == 'pooling':
+        #in_boxes, in_scores, in_class = prepare_data(info_1, info_2, info3=info_3)
+        in_boxes, in_scores, in_class, in_logits, in_prob = prepare_data(info_1, info_2, info3=info_3)
+        out_boxes = in_boxes
+        out_scores = torch.Tensor(in_scores)
+        out_class = torch.Tensor(in_class)
+    elif method == 'baysian' or method == 'baysian_avg_bbox' or method == 'avg_score' or method == 'baysian_wt_score_box' or method == 'baysian_wt_score_box':
+        threshold = 0.5
+        #in_boxes, in_scores, in_class = prepare_data(info_1, info_2, info3=info_3)
+        in_boxes, in_scores, in_class, in_logits, in_prob = prepare_data(info_1, info_2, info3=info_3)
+        #keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, threshold, method)
+        keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, in_prob, threshold, method)
+    elif method == 'avgLogits_softmax' or method == 'sumLogits_softmax':
+        threshold = 0.5
+        in_boxes, in_scores, in_class, in_logits, _ = prepare_data(info_1, info_2, info3=info_3)
+        keep, out_scores, out_boxes, out_class = nms_logits(in_boxes, in_scores, in_class, in_logits, threshold, method)
+    
+    return out_boxes, out_scores, out_class
 def draw_box(img, bbox, color):
     for i in range(len(bbox)):
         img = cv2.rectangle(img,  (int(bbox[i][0]+0.5), int(bbox[i][1]+0.5)),  (int(bbox[i][2]+0.5), int(bbox[i][3]+0.5)), color, 2)
@@ -432,69 +420,57 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
         if 'probs' in det_2.keys():
             info_2['prob'] = det_2['probs'][i]
         
-        """
         info_3 = {}
         info_3['img_name'] = det_3['image'][i].split('.')[0] + '.jpeg'
         info_3['bbox'] = det_3['boxes'][i]
         info_3['score'] = det_3['scores'][i]
         info_3['class'] = det_3['classes'][i]
         info_3['class_logits'] = det_3['class_logits'][i]
-        """
-        if len(info_1['bbox']) == 0 or len(info_2['bbox']) == 0:
-            if(len(info_1['bbox']) > 0):
+        if 'probs' in det_3.keys():
+            info_3['prob'] = det_3['probs'][i]
+        
+        if len(info_1['bbox']) > 0:
+            num_1 = 1
+        else:
+            num_1 = 0
+        if len(info_2['bbox']) > 0:
+            num_2 = 1
+        else:
+            num_2 = 0
+        if len(info_3['bbox']) > 0:
+            num_3 = 1
+        else:
+            num_3 = 0
+        
+        num_detections = num_1 + num_2 + num_3
+        
+        if num_detections == 0:
+            out_boxes = np.array(info_2['bbox'])
+            out_class = torch.Tensor(info_2['class'])
+            out_scores = torch.Tensor(info_2['score'])
+        elif num_detections == 1:            
+            if len(info_1['bbox']) > 0:
                 out_boxes = np.array(info_1['bbox'])
                 out_class = torch.Tensor(info_1['class'])
-                if method == 'avgLogits' or method == 'sumLogits':
-                    pdb.set_trace()
-                    out_logits = np.array(info_1['class_logits'])[:, :3]
-                    out_scores = []
-                    for j in range(len(out_logits)):
-                        cur_class = info_1['class'][j]
-                        out_scores.append(out_logits[j, cur_class])
-                    out_scores = torch.Tensor(out_scores)
-                elif method == 'avgLogits_softmax' or method == 'sumLogits_softmax':
-                    out_logits = np.array(info_1['class_logits'])[:, :3]
-                    out_scores = []
-                    for j in range(len(out_logits)):
-                        cur_class = info_1['class'][j]
-                        out_scores.append(out_logits[j, cur_class])
-                    out_scores = torch.Tensor(out_scores)
-                else:
-                    out_scores = torch.Tensor(info_1['score'])
-            elif(len(info_2['bbox']) > 0):
+                out_scores = torch.Tensor(info_1['score'])
+            elif len(info_2['bbox']) > 0:
                 out_boxes = np.array(info_2['bbox'])
                 out_class = torch.Tensor(info_2['class'])
-                if method == 'avgLogits' or method == 'avgLogits_softmax' or method == 'sumLogits' or method == 'sumLogits_softmax':
-                    out_logits = np.array(info_2['class_logits'])[:, :3]
-                    out_scores = []
-                    for j in range(len(out_logits)):
-                        cur_class = info_2['class'][j]
-                        out_scores.append(out_logits[j, cur_class])
-                    out_scores = torch.Tensor(out_scores)
-                else:
-                    out_scores = torch.Tensor(info_2['score'])
+                out_scores = torch.Tensor(info_2['score'])
             else:
-                out_boxes = np.array([])
-                out_class = torch.Tensor([])                
-                out_scores = torch.Tensor([])
+                out_boxes = np.array(info_3['bbox'])
+                out_class = torch.Tensor(info_3['class'])
+                out_scores = torch.Tensor(info_3['score'])
+        elif num_detections == 2:
+            if len(info_1['bbox']) == 0:
+                out_boxes, out_scores, out_class = fusion(method, info_2, info_3)
+            elif len(info_2['bbox']) == 0:
+                out_boxes, out_scores, out_class = fusion(method, info_1, info_3)
+            else:
+                out_boxes, out_scores, out_class = fusion(method, info_1, info_2)
         else:
-            if method == 'nms':            
-                out_boxes, out_scores, out_class = nms_1(info_1, info_2)
-            elif method == 'pooling':
-                in_boxes, in_scores, in_class, in_logits, in_prob = prepare_data(info_1, info_2)
-                out_boxes = in_boxes
-                out_scores = torch.Tensor(in_scores)
-                out_class = torch.Tensor(in_class)
-            elif method == 'baysian' or method == 'baysian_avg_bbox' or method == 'avg_score' \
-              or method == 'baysian_wt_score_box':
-                threshold = 0.5
-                in_boxes, in_scores, in_class, in_logits, in_prob = prepare_data(info_1, info_2)
-                keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, in_prob, threshold, method)
-            elif method == 'avgLogits' or method == 'avgLogits_softmax' or method == 'sumLogits' or method == 'sumLogits_softmax':
-                threshold = 0.5
-                in_boxes, in_scores, in_class, in_logits, _ = prepare_data(info_1, info_2)
-                keep, out_scores, out_boxes, out_class = nms_logits(in_boxes, in_scores, in_class, in_logits, threshold, method)
-        
+            out_boxes, out_scores, out_class = fusion(method, info_1, info_2, info_3=info_3)
+            
         count_1 += len(info_1['bbox'])
         count_2 += len(info_2['bbox'])
         count_fusion += len(out_boxes)
@@ -600,8 +576,8 @@ if __name__ == '__main__':
     
     print('detection file 1:', det_file_1)
     print('detection file 2:', det_file_2)
-    #det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50_'+time+'_with_logits.json'#'val_thermal_only_predictions_IOU50_day.json'#
-    #det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_'+time+'_with_logits.json'
+    print('detection file 3:', det_file_3)
+    
     path_1 = '../../../Datasets/FLIR/' + data_set + '/resized_RGB/'
     path_2 = '../../../Datasets/FLIR/' + data_set + '/thermal_8_bit/'
     out_folder = 'out/box_comparison/'
@@ -639,6 +615,5 @@ if __name__ == '__main__':
     det_2 = json.load(open(det_file_2, 'r'))
     det_3 = json.load(open(det_file_3, 'r'))
     evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_Day.out')
-    #result = apply_late_fusion_and_evaluate(evaluator, det_1, det_2, 'nms')
-    method = 'baysian'#'baysian_wt_score_box'#'sumLogits_softmax'#'sumLogits'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
+    method = 'avg_score'#'baysian_wt_score_box'#'sumLogits_softmax'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
     result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method)

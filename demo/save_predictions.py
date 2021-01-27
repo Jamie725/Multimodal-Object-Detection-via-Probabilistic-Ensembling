@@ -34,13 +34,13 @@ def _create_text_labels(classes, scores, class_names):
 #mypath = 'input/FLIR/Day/'
 dataset_name = 'FLIR'
 data_set = 'val'
-RGB_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/RGB/Night/'
+RGB_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/RGB/'
 t_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/thermal_8_bit/'
-data_gen = 'early_fusion'#'early_fusion'#'thermal_only'#'mid_fusion'
+data_gen = 'mid_fusion'#'early_fusion'#'thermal_only'#'mid_fusion'
 print('model:', data_gen)
 
 # Build image id dictionary
-val_file_name = 'thermal_annotations_4_channel_no_dogs_Night.json'#'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_annotations_4_channel_no_dogs_Night.json'#'RGB_annotations_4_channel_no_dogs.json'
+val_file_name = 'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_annotations_4_channel_no_dogs_Night.json'#'RGB_annotations_4_channel_no_dogs.json'
 val_json_path = '../../../Datasets/FLIR/val/' + val_file_name
 data = json.load(open(val_json_path, 'r'))
 name_to_id_dict = {}
@@ -88,13 +88,15 @@ elif data_gen == 'mid_fusion':
 predictor = DefaultPredictor(cfg)
 
 valid_class = [0, 1, 2]
-out_pred_file = out_folder+data_set+'_'+data_gen+'_predictions_IOU50_3_class_Night_with_logits.json'
+out_pred_file = out_folder+data_set+'_'+data_gen+'_predictions_IOU50_with_logits_3_class_with_multiclass_prob_score.json'
+print('out file:', out_pred_file)
 out_dicts = {}
 image_dict = []
 boxes_dict = []
 scores_dict = []
 classes_dict = []
 class_logits_dict = []
+prob_dict = []
 img_id_dict = []
     
 for i in range(len(files_names)):
@@ -144,13 +146,14 @@ for i in range(len(files_names)):
     scores = predictions.scores.tolist() if predictions.has("scores") else None
     classes = predictions.pred_classes.tolist() if predictions.has("pred_classes") else None
     class_logits = predictions.class_logits.tolist() if predictions.has("class_logits") else None
-    
+    probs = predictions.prob_score.tolist() if predictions.has("prob_score") else None
     #labels = _create_text_labels(classes, scores, self.metadata.get("thing_classes", None))
     #keypoints = predictions.pred_keypoints if predictions.has("pred_keypoints") else None
     out_boxes = []
     out_scores = []
     out_classes = []
     out_logits = []
+    out_probs = []
     
     for j in range(len(boxes)):
         if classes[j] <= 2:
@@ -158,6 +161,7 @@ for i in range(len(files_names)):
             out_scores.append(scores[j])
             out_classes.append(classes[j])
             out_logits.append(class_logits[j])
+            out_probs.append(probs[j])
 
     #out_boxes = np.array(out_boxes)
     #out_scores = np.array(out_scores)
@@ -167,6 +171,7 @@ for i in range(len(files_names)):
     scores_dict.append(out_scores)
     classes_dict.append(out_classes)
     class_logits_dict.append(out_logits)
+    prob_dict.append(out_probs)
     try:
         img_id_dict.append(name_to_id_dict[files_names[i].split('.')[0]])
     except:
@@ -178,6 +183,7 @@ out_dicts['scores'] = scores_dict
 out_dicts['classes'] = classes_dict
 out_dicts['image_id'] = img_id_dict
 out_dicts['class_logits'] = class_logits_dict
+out_dicts['probs'] = prob_dict
 
 with open(out_pred_file, 'w') as outfile:
     json.dump(out_dicts, outfile, indent=2)
