@@ -104,38 +104,8 @@ def bayesian_fusion_multiclass(match_score_vec, pred_class):
     fused_positive = np.exp(np.sum(log_positive_scores))
     fused_negative = np.sum(np.exp(np.sum(log_negative_scores, axis=0)))
     out = fused_positive / (fused_positive + fused_negative)
-
     return out
-"""
-def nms_1(info_1, info_2):
-    # RGB boxes append thermal boxes
-    # Order: len(RGB) | len(thermal)
-    # Boxes
-    boxes = info_1['bbox'].copy()
-    boxes.extend(info_2['bbox'])
-    boxes = torch.Tensor(boxes)
-    # Scores
-    scores = info_1['score'].copy()
-    scores.extend(info_2['score'])
-    scores = torch.Tensor(scores)
-    # Classes
-    classes = info_1['class'].copy()
-    classes.extend(info_2['class'])
-    classes = torch.Tensor(classes)
-    # Perform nms
-    iou_threshold = 0.5
-
-    #keep_id = box_ops.batched_nms(boxes, scores, classes, iou_threshold)
-    try:
-        keep_id = batched_nms(boxes, scores, classes, iou_threshold)
-    except:
-        pdb.set_trace()
-    # Add to output
-    out_boxes = boxes[keep_id]
-    out_scores = torch.Tensor(scores[keep_id])
-    out_class = torch.Tensor(classes[keep_id])
-    return out_boxes, out_scores, out_class
-"""
+    
 def nms_1(info_1, info_2, info_3=''):
     # Boxes
     boxes = info_1['bbox'].copy()
@@ -499,6 +469,7 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
         out_info['instances'] = proposals
         outputs.append(out_info)
         evaluator.process(inputs, outputs)
+        pdb.set_trace()
         """
         img = draw_box(img, out_boxes, (0,255,0))
         out_img_name = 'out_img_baysian_fusion/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian_avg_bbox.jpg'

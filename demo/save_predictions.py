@@ -33,15 +33,15 @@ def _create_text_labels(classes, scores, class_names):
 # get path
 #mypath = 'input/FLIR/Day/'
 dataset_name = 'FLIR'
-data_set = 'val'
+data_set = 'train'
 RGB_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/RGB/'
 t_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/thermal_8_bit/'
-data_gen = 'mid_fusion'#'early_fusion'#'thermal_only'#'mid_fusion'
+data_gen = 'thermal_only'#'early_fusion'#'thermal_only'#'mid_fusion'
 print('model:', data_gen)
 
 # Build image id dictionary
 val_file_name = 'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_annotations_4_channel_no_dogs_Night.json'#'RGB_annotations_4_channel_no_dogs.json'
-val_json_path = '../../../Datasets/FLIR/val/' + val_file_name
+val_json_path = '../../../Datasets/FLIR/'+data_set+'/' + val_file_name
 data = json.load(open(val_json_path, 'r'))
 name_to_id_dict = {}
 for i in range(len(data['images'])):
@@ -50,6 +50,7 @@ for i in range(len(data['images'])):
 
 # File names
 files_names = [f for f in listdir(RGB_path) if isfile(join(RGB_path, f))]
+pdb.set_trace()
 out_folder = 'out/box_predictions/3_class/'
 # Make folder if not exists
 if not os.path.exists(out_folder):

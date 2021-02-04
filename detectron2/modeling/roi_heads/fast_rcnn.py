@@ -108,13 +108,17 @@ def fast_rcnn_inference_single_image(
     boxes = Boxes(boxes.reshape(-1, 4))
     boxes.clip(image_shape)
     boxes = boxes.tensor.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
-
     # Filter results based on detection scores
     filter_mask = scores > score_thresh  # R x K
     # R' x 2. First column contains indices of the R predictions;
     # Second column contains indices of classes.
-    #filter_inds = torch.nonzero(filter_mask, as_tuple=False)
+    
+    # Get box ID with predicted class label: [box id, class label]
     filter_inds = filter_mask.nonzero()
+
+    if not class_logits == None:
+        class_logits = class_logits[filter_inds[:,0]]
+        predicted_probs = scores[filter_inds[:,0]]
     
     if num_bbox_reg_classes == 1:
         boxes = boxes[filter_inds[:, 0], 0]
@@ -134,9 +138,10 @@ def fast_rcnn_inference_single_image(
     result.pred_classes = filter_inds[:, 1]
     # Jamie
     # Save out logits
-    
     if not class_logits == None:
-        result.class_logits = class_logits[filter_inds[:,0]]
+        #result.class_logits = class_logits[filter_inds[:,0]]
+        result.class_logits = class_logits[keep]
+        result.prob_score = predicted_probs[keep]
         #class_logits = class_logits[filter_inds[:,0]]
         #result.class_logits = class_logits[keep]
     return result, filter_inds[:, 0]
