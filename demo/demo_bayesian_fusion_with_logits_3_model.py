@@ -414,10 +414,13 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
         
         num_detections = num_1 + num_2 + num_3
         
+        # No detections
         if num_detections == 0:
-            out_boxes = np.array(info_2['bbox'])
-            out_class = torch.Tensor(info_2['class'])
-            out_scores = torch.Tensor(info_2['score'])
+            continue
+            #out_boxes = np.array(info_2['bbox'])
+            #out_class = torch.Tensor(info_2['class'])
+            #out_scores = torch.Tensor(info_2['score'])
+        # Only 1 model detection
         elif num_detections == 1:            
             if len(info_1['bbox']) > 0:
                 out_boxes = np.array(info_1['bbox'])
@@ -431,6 +434,7 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
                 out_boxes = np.array(info_3['bbox'])
                 out_class = torch.Tensor(info_3['class'])
                 out_scores = torch.Tensor(info_3['score'])
+        # Only two models with detections
         elif num_detections == 2:
             if len(info_1['bbox']) == 0:
                 out_boxes, out_scores, out_class = fusion(method, info_2, info_3)
@@ -438,6 +442,7 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
                 out_boxes, out_scores, out_class = fusion(method, info_1, info_3)
             else:
                 out_boxes, out_scores, out_class = fusion(method, info_1, info_2)
+        # All models detected things
         else:
             out_boxes, out_scores, out_class = fusion(method, info_1, info_2, info_3=info_3)
             
@@ -469,7 +474,7 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
         out_info['instances'] = proposals
         outputs.append(out_info)
         evaluator.process(inputs, outputs)
-        pdb.set_trace()
+        #pdb.set_trace()
         """
         img = draw_box(img, out_boxes, (0,255,0))
         out_img_name = 'out_img_baysian_fusion/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian_avg_bbox.jpg'
@@ -586,5 +591,5 @@ if __name__ == '__main__':
     det_2 = json.load(open(det_file_2, 'r'))
     det_3 = json.load(open(det_file_3, 'r'))
     evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_Day.out')
-    method = 'avg_score'#'baysian_wt_score_box'#'sumLogits_softmax'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
+    method = 'sumLogits_softmax'#'baysian_wt_score_box'#'sumLogits_softmax'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
     result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method)
