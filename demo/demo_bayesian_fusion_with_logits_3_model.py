@@ -360,7 +360,7 @@ def draw_box(img, bbox, color):
     for i in range(len(bbox)):
         img = cv2.rectangle(img,  (int(bbox[i][0]+0.5), int(bbox[i][1]+0.5)),  (int(bbox[i][2]+0.5), int(bbox[i][3]+0.5)), color, 2)
     return img
-def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
+def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=''):
     evaluator.reset()
     img_folder = '../../../Datasets/FLIR/val/thermal_8_bit/'
     
@@ -390,15 +390,6 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
         if 'probs' in det_2.keys():
             info_2['prob'] = det_2['probs'][i]
         
-        info_3 = {}
-        info_3['img_name'] = det_3['image'][i].split('.')[0] + '.jpeg'
-        info_3['bbox'] = det_3['boxes'][i]
-        info_3['score'] = det_3['scores'][i]
-        info_3['class'] = det_3['classes'][i]
-        info_3['class_logits'] = det_3['class_logits'][i]
-        if 'probs' in det_3.keys():
-            info_3['prob'] = det_3['probs'][i]
-        
         if len(info_1['bbox']) > 0:
             num_1 = 1
         else:
@@ -407,19 +398,28 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
             num_2 = 1
         else:
             num_2 = 0
-        if len(info_3['bbox']) > 0:
-            num_3 = 1
-        else:
-            num_3 = 0
         
-        num_detections = num_1 + num_2 + num_3
+        num_detections = num_1 + num_2
+
+        if det_3:
+            info_3 = {}
+            info_3['img_name'] = det_3['image'][i].split('.')[0] + '.jpeg'
+            info_3['bbox'] = det_3['boxes'][i]
+            info_3['score'] = det_3['scores'][i]
+            info_3['class'] = det_3['classes'][i]
+            info_3['class_logits'] = det_3['class_logits'][i]
+            if 'probs' in det_3.keys():
+                info_3['prob'] = det_3['probs'][i]
+            if len(info_3['bbox']) > 0:
+                num_3 = 1
+            else:
+                num_3 = 0
+
+            num_detections += num_3
         
         # No detections
         if num_detections == 0:
             continue
-            #out_boxes = np.array(info_2['bbox'])
-            #out_class = torch.Tensor(info_2['class'])
-            #out_scores = torch.Tensor(info_2['score'])
         # Only 1 model detection
         elif num_detections == 1:            
             if len(info_1['bbox']) > 0:
@@ -431,25 +431,25 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
                 out_class = torch.Tensor(info_2['class'])
                 out_scores = torch.Tensor(info_2['score'])
             else:
-                out_boxes = np.array(info_3['bbox'])
-                out_class = torch.Tensor(info_3['class'])
-                out_scores = torch.Tensor(info_3['score'])
+                if det_3:
+                    out_boxes = np.array(info_3['bbox'])
+                    out_class = torch.Tensor(info_3['class'])
+                    out_scores = torch.Tensor(info_3['score'])
         # Only two models with detections
         elif num_detections == 2:
-            if len(info_1['bbox']) == 0:
-                out_boxes, out_scores, out_class = fusion(method, info_2, info_3)
-            elif len(info_2['bbox']) == 0:
-                out_boxes, out_scores, out_class = fusion(method, info_1, info_3)
-            else:
+            if not det_3:
                 out_boxes, out_scores, out_class = fusion(method, info_1, info_2)
+            else:    
+                if len(info_1['bbox']) == 0:
+                    out_boxes, out_scores, out_class = fusion(method, info_2, info_3)
+                elif len(info_2['bbox']) == 0:
+                    out_boxes, out_scores, out_class = fusion(method, info_1, info_3)
+                else:
+                    out_boxes, out_scores, out_class = fusion(method, info_1, info_2)
         # All models detected things
         else:
             out_boxes, out_scores, out_class = fusion(method, info_1, info_2, info_3=info_3)
             
-        count_1 += len(info_1['bbox'])
-        count_2 += len(info_2['bbox'])
-        count_fusion += len(out_boxes)
-       
         file_name = img_folder + info_1['img_name'].split('.')[0] + '.jpeg'
         img = cv2.imread(file_name)
         H, W, _ = img.shape
@@ -491,12 +491,7 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
     
     if results is None:
         results = {}
-    
-    avgRGB = count_1 / num_img
-    avgThermal = count_2 / num_img
-    avgNMS = count_fusion / num_img
 
-    print('Avg bbox for RGB:', avgRGB, "average count thermal:", avgThermal, 'average count nms:', avgNMS)
     return results
 
 
@@ -505,18 +500,20 @@ if __name__ == '__main__':
     data_folder = 'out/box_predictions/3_class/'
     dataset = 'FLIR'
     IOU = 50                 
-    time = 'all'
+    time = 'Day'
     model_1 = 'early_fusion'
     model_2 = 'mid_fusion'
     model_3 = 'thermal_only'
     if time == 'Day':
         val_file_name = 'thermal_annotations_4_channel_no_dogs_Day.json'#'RGB_annotations_4_channel_no_dogs.json'#'thermal_annotations_4_channel_no_dogs_Day.json'#
-        det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50_'+time+'_with_logits.json'
-        det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_'+time+'_with_logits.json'
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
     elif time == 'Night':
         val_file_name = 'thermal_annotations_4_channel_no_dogs_Night.json'
-        det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50_'+time+'_with_logits.json'
-        det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_'+time+'_with_logits.json'
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
     else:
         # more classes
         #det_file_1 = data_folder + 'val_mid_fusion_predictions_IOU50_with_logits.json'
@@ -526,27 +523,9 @@ if __name__ == '__main__':
         """
         3 class with multiclass probability score
         """
-        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_with_logits_3_class_with_multiclass_prob_score.json'
-        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_logits_3_class_with_multiclass_prob_score.json'
-        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_logits_3_class_with_multiclass_prob_score.json'
-        
-        
-        """
-        # 3 class
-        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_logits.json'
-        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_logits.json'
-        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_logits.json'
-        """
-        """
-        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_with_logits_3_class_new.json'
-        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_logits_3_class_new.json'
-        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_logits_3_class_new.json'
-        """
-        #val_file_name = 'thermal_annotations_4_channel_no_dogs_3_class.json'
-
-        #det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_with_logits_new.json'
-        #det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_logits_new.json'
-        #det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_logits_new.json'
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
         
         val_file_name = 'thermal_annotations_4_channel_no_dogs.json'
     
@@ -592,4 +571,5 @@ if __name__ == '__main__':
     det_3 = json.load(open(det_file_3, 'r'))
     evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_Day.out')
     method = 'sumLogits_softmax'#'baysian_wt_score_box'#'sumLogits_softmax'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
-    result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method)
+    #result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=det_3)
+    result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method)
