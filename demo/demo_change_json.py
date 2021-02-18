@@ -8,7 +8,6 @@ import json
 from os.path import isfile, join
 import cv2
 
-time = 'Night'
 data_set = 'val'
 in_anno_file = '../../../Datasets/FLIR/'+data_set+'/thermal_annotations.json'#thermal_annotations_4_channel_no_dogs.json'
 out_anno_file = '../../../Datasets/FLIR/'+data_set+'/thermal_RGBT_pairs_3_class.json'
@@ -26,9 +25,9 @@ annotations = []
 # Remove dog categories
 for i in range(len(annos)):
     if annos[i]['category_id'] == 17: # dog
-        #pdb.set_trace()
         continue
     else:
+        annos[i]['category_id'] -= 1
         annotations.append(annos[i])
 
 file_names = [f for f in os.listdir(img_folder) if isfile(join(img_folder, f))]
@@ -50,15 +49,6 @@ for i in range(len(images)):
     
     if img_file_num in rgb_img_dict.keys():
         img_info = images[i].copy()
-        """
-        fname = img_info['file_name'].split('.jpeg')[0]
-        fname = 'RGB/' + fname.split('8_bit/')[1] + '.jpg'
-        img_info['file_name'] = fname
-        img = cv2.imread('../../../Datasets/FLIR/'+data_set+'/'+fname)
-
-        img_info['height'] = img.shape[0]
-        img_info['width'] = img.shape[1]
-        """
         images_new.append(img_info)        
         img_id = images[i]['id']
         # Skip annotations with images that are not in this image ID
@@ -72,7 +62,10 @@ for i in range(len(images)):
             if anno_cnt == len(annotations):
                 break
             print('image id = ', img_id, 'anno id = ', anno_cnt)
-        
+
+for i in range(3):
+    categories[i]['id'] -= 1
+
 out_json = {}
 out_json['info'] = info
 out_json['categories'] = categories[:3]
