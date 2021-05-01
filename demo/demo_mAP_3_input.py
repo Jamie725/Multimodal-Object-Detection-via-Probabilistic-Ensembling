@@ -30,12 +30,14 @@ def mapper(dataset_dict):
     dataset_dict["instances"] = utils.filter_empty_instances(instances)
     return dataset_dict
 
-def test(cfg, dataset_name):
+def test(cfg, dataset_name, file_name='FLIR_thermal_only_result.out'):
     
     cfg.DATASETS.TEST = (dataset_name, )
     predictor = DefaultPredictor(cfg)
     #evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
-    out_name = out_folder+'FLIR_thermal_only_result_1.out'
+    
+    out_name = out_folder + file_name
+    #pdb.set_trace()
     evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path=out_name)
     #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
     val_loader = build_detection_test_loader(cfg, dataset_name)
@@ -45,7 +47,7 @@ torch.cuda.set_device(0)
 
 # get path
 dataset = 'FLIR'
-out_folder = 'out/box_predictions'
+out_folder = 'out/mAP/'
 
 # Train path
 train_path = '../../../Datasets/'+ dataset +'/train/thermal_8_bit/'
@@ -56,7 +58,7 @@ train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_3_cha
 val_path = '../../../Datasets/'+ dataset +'/val/thermal_8_bit/'
 val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
 #val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_new.json'
-val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_3_channel_no_dogs.json'#thermal_annotations_4_channel_no_dogs.json'
+val_json_path = '../../../Datasets/'+dataset+'/val/thermal_RGBT_pairs_3_class.json'#thermal_RGBT_pairs_3_class.json'#thermal_annotations_3_channel_no_dogs.json'#thermal_annotations_4_channel_no_dogs.json'
 #thermal_annotations_4_channel_no_dogs_Day.json
 
 """
@@ -88,10 +90,10 @@ cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
 #cfg.MODEL.ROI_HEADS.NUM_CLASSES = 17
 #######################
 
-
 # Test on validation set
 dataset_test = 'FLIR_val'
 register_coco_instances(dataset_test, {}, val_json_path, val_folder)
 FLIR_metadata_test = MetadataCatalog.get(dataset_test)
 dataset_dicts_test = DatasetCatalog.get(dataset_test)
-test(cfg, dataset_test)
+file_name = 'FLIR_thermal_only_3_class.out'
+test(cfg, dataset_test, file_name)
