@@ -54,7 +54,7 @@ torch.cuda.set_device(1)
 dataset = 'FLIR'
 # Train path
 train_path = '../../../Datasets/'+ dataset +'/train/thermal_8_bit/'
-train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
+train_folder = '../../../Datasets/FLIR/train/'
 #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4class.json'
 train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_3_channel_no_dogs.json'
 #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations.json'
@@ -81,7 +81,7 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_thermal_only'
+out_folder = 'output_thermal_only_temp'
 out_model_path = os.path.join(out_folder, 'out_model_final.pth')
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
@@ -101,7 +101,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for this model
 
 ###### Performance tuning ########
-cfg.DATALOADER.NUM_WORKERS = 2
+cfg.DATALOADER.NUM_WORKERS = 0
 cfg.SOLVER.IMS_PER_BATCH = 2
 cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
 cfg.SOLVER.MAX_ITER = 50000
