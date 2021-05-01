@@ -99,28 +99,32 @@ def prepare_data(info1, info2, info3=''):
     else:    
         return out_bbox, out_score, out_class, out_logits
 
-def prepare_data_gt(info1, info2, info_gt, info3=''):
+def prepare_data_gt(info1, info2, info_gt='', info3=''):
     bbox1 = np.array(info1['bbox'])
     bbox2 = np.array(info2['bbox'])
-    bbox_gt = np.array(info_gt['bbox'])
+    out_bbox = np.concatenate((bbox1, bbox2), axis=0)
+    
     score1 = np.array(info1['score'])
     score2 = np.array(info2['score'])
+    out_score = np.concatenate((score1, score2), axis=0)
+
     class1 = np.array(info1['class'])
     class2 = np.array(info2['class'])
-    class_gt = np.array(info_gt['class'])
-    out_logits1 = np.array(info1['class_logits'])
-    out_logits2 = np.array(info2['class_logits'])
-    try:
-        out_logits = np.concatenate((out_logits1, out_logits2), axis=0)
-    except:
-        pdb.set_trace()
-    out_bbox = np.concatenate((bbox1, bbox2), axis=0)
-    out_bbox = np.concatenate((out_bbox, bbox_gt), axis=0)
-    out_score = np.concatenate((score1, score2), axis=0)
-    out_score = np.concatenate((out_score, np.ones(len(class_gt))), axis=0)
     out_class = np.concatenate((class1, class2), axis=0)
-    out_class = np.concatenate((out_class, class_gt), axis=0)
-    num_det = [len(class1), len(class2), len(class_gt)]
+
+    out_logits1 = np.array(info1['class_logits'])
+    out_logits2 = np.array(info2['class_logits'])    
+    out_logits = np.concatenate((out_logits1, out_logits2), axis=0)
+
+    num_det = [len(class1), len(class2)]
+    if info_gt:
+        bbox_gt = np.array(info_gt['bbox'])
+        class_gt = np.array(info_gt['class'])
+        out_bbox = np.concatenate((out_bbox, bbox_gt), axis=0)
+        out_score = np.concatenate((out_score, np.ones(len(class_gt))), axis=0)
+        out_class = np.concatenate((out_class, class_gt), axis=0)
+        num_det.append(len(class_gt))
+    #pdb.set_trace()
     if 'prob' in info1.keys():
         prob1 = np.array(info1['prob'])
         prob2 = np.array(info2['prob'])  
@@ -132,17 +136,22 @@ def prepare_data_gt(info1, info2, info_gt, info3=''):
     else:    
         return out_bbox, out_score, out_class, out_logits, num_det
 
-def prepare_data_gt_1_det(info1, info_gt, info3=''):
+def prepare_data_gt_1_det(info1, info_gt=''):
     bbox1 = np.array(info1['bbox'])
-    bbox_gt = np.array(info_gt['bbox'])
     out_score = np.array(info1['score'])
     class1 = np.array(info1['class'])
-    class_gt = np.array(info_gt['class'])
     out_logits = np.array(info1['class_logits'])
     out_bbox = np.concatenate((bbox1, bbox_gt), axis=0)
-    out_score = np.concatenate((out_score, np.ones(len(class_gt))), axis=0)
-    out_class = np.concatenate((class1, class_gt), axis=0)
-    num_det = [len(class1), len(class_gt)]
+    num_det = [len(class1)]
+
+    if info_gt:
+        class_gt = np.array(info_gt['class'])
+        bbox_gt = np.array(info_gt['bbox'])
+        out_score = np.concatenate((out_score, np.ones(len(class_gt))), axis=0)
+        out_class = np.concatenate((class1, class_gt), axis=0)
+        num_det.append(len(class_gt))
+    pdb.set_trace()
+    
     if 'prob' in info1.keys():
         out_prob = np.array(info1['prob'])
         return out_bbox, out_score, out_class, out_logits, out_prob, num_det
@@ -157,7 +166,7 @@ def determine_model(num_det, det_id):
         else:
             model_id_list[i] = 1
     return model_id_list
-
+"""
 def nms_multiple_box(dets, scores, classes, logits, thresh, num_det, method):
     x1 = dets[:, 0] + classes * 640
     y1 = dets[:, 1] + classes * 512
@@ -203,15 +212,22 @@ def nms_multiple_box(dets, scores, classes, logits, thresh, num_det, method):
         
         if len(match_score) > 0:
             # Assign matched scores
+            #match_ind
+            match_ind = match_ind.tolist()
+            match_ind.append(i)
             model_id_list = determine_model(num_det, match_ind)
+
             temp_score = np.zeros((1,8))
             for k in range(len(match_ind)):
-                if not match_ind[k] in range(0, np.sum(num_det[:-1])):
-                    continue                
+                #if not match_ind[k] in range(0, np.sum(num_det[:-1])):
+                #    pdb.set_trace()
+                #    continue                
                 temp_score[0, model_id_list[k]*4:(model_id_list[k]+1)*4] = logits[match_ind[k]]
+            #pdb.set_trace()
                 
             match_scores = np.concatenate((match_scores, temp_score))            
             match_class = np.concatenate((match_class, [classes[i]]))
+
             # # # # # # # # # # # # # # #
             # Aggregate matched boxes
             # # # # # # # # # # # # # # #
@@ -268,7 +284,126 @@ def nms_multiple_box(dets, scores, classes, logits, thresh, num_det, method):
     match_classes = torch.Tensor(match_class)
 
     return match_scores, match_classes, match_bboxs
+"""
+def nms_multiple_box(dets, scores, classes, logits, thresh, num_det, method):
+    x1 = dets[:, 0] + classes * 640
+    y1 = dets[:, 1] + classes * 512
+    x2 = dets[:, 2] + classes * 640
+    y2 = dets[:, 3] + classes * 512
+    #scores = scores#dets[:, 4]
 
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    order = scores.argsort()[::-1]
+    keep = []
+    match_logits = np.zeros((1,8))
+    match_class = np.zeros(1)
+    out_boxes = np.zeros((1, 4))
+    match_bboxs = []
+    cnt = 0
+    match_id = []
+    
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+        #print(order)
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = w * h
+        ovr = inter / (areas[i] + areas[order[1:]] - inter)
+        
+        # Unmatched index in order list
+        inds = np.where(ovr <= thresh)[0]
+        # Matched index in order list
+        match = np.where(ovr > thresh)[0]
+        # Matched index in original list
+        match_ind = order[match+1]
+
+        match_score = list(scores[match_ind])
+        match_bbox = list(dets[match_ind][:,:4])
+        original_score = scores[i].tolist()
+        original_bbox = dets[i][:4]
+        
+        if len(match_score) > 0:
+            # Assign matched scores
+            match_ind = match_ind.tolist()
+            match_ind.append(i)
+            model_id_list = determine_model(num_det, match_ind)
+            temp_score = np.zeros((1,8))
+            
+            for k in range(len(match_ind)):
+                if not match_ind[k] in range(0, np.sum(num_det[:-1])):
+                    #print('Its gt! Skip it...')
+                    #pdb.set_trace()
+                    continue                
+                temp_score[0, model_id_list[k]*4:(model_id_list[k]+1)*4] = logits[match_ind[k]]
+             
+            match_logits = np.concatenate((match_logits, temp_score))
+            # Cuurent box is groundtruth box
+            if not i in range(np.sum(num_det[:-1])):         
+                match_class = np.concatenate((match_class, [classes[i]]))
+            else:# Cuurent box is not groundtruth box
+                match_class = np.concatenate((match_class, [3]))
+            
+            #pdb.set_trace()
+            # # # # # # # # # # # # # # #
+            # Aggregate matched boxes
+            # # # # # # # # # # # # # # #
+            # Current box is not groundtruth
+            if i in range(num_det[0] + num_det[1]):
+                match_bbox += [original_bbox]
+                match_score.append(original_score)
+
+            if method == 'wt_box_fusion':
+                final_bbox = weighted_box_fusion(match_bbox, match_score)
+            else:
+                final_bbox = avg_bbox_fusion(match_bbox)
+            match_bboxs.append(final_bbox)
+            # Matched groundtruth ID
+            match_id.append(match_ind)
+            cnt += 1
+        # No matched bbox
+        else:
+            gt_start_id = np.sum(num_det[:-1])
+            gt_end_id = gt_start_id + num_det[-1]
+            # If current bbox is groundtruth and has no matched bbox
+            if i in range(gt_start_id, gt_end_id):                
+                order = order[inds + 1]                
+                continue
+            # If current bbox is false positive (box detected but should be background)
+            else:
+                # Save out the logits scores
+                model_id = determine_model(num_det, [i])
+                temp_score = np.zeros((1,8))                
+                temp_score[0, model_id[0]*4:(model_id[0]+1)*4] = logits[i]                
+                match_logits = np.concatenate((match_logits, temp_score))                
+                # Assign background label
+                match_class = np.concatenate((match_class, [3]))
+                # Debug
+                match_id.append(i)
+                # Output bbox
+                match_bboxs.append(original_bbox)
+                cnt += 1
+                #pdb.set_trace()
+        #pdb.set_trace()
+        # inds + 1 to reverse to original index
+        order = order[inds + 1] 
+    
+    match_logits = match_logits[1:]
+    match_class = match_class[1:]
+
+    assert len(match_bboxs)==len(match_logits)
+    assert len(match_class)==len(match_bboxs)
+
+    match_bboxs = match_bboxs
+    match_logits = torch.Tensor(match_logits)
+    match_classes = torch.Tensor(match_class)
+
+    return match_logits, match_classes, match_bboxs
 def evaluate(cfg, evaluator, det_1, det_2, anno, predictor, method):
     evaluator.reset()
     img_folder = '../../../Datasets/FLIR/val/thermal_8_bit/'
@@ -331,16 +466,16 @@ def evaluate(cfg, evaluator, det_1, det_2, anno, predictor, method):
             # If no detection in 1st model:
             elif len(info_1['bbox']) == 0:
                 print('model 1 miss detected')
-                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt_1_det(info_2, info_gt)
+                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt_1_det(info_2)
                 score_results, class_results, box_results = nms_multiple_box(in_boxes, in_scores, in_class, in_logits, 0.5, num_det, method)
                 #class_results, score_results, box_results = match_box_nms(in_boxes, in_scores, in_class, in_logits, 0.5, num_det, method)
             elif len(info_2['bbox']) == 0:
                 print('model 2 miss detected')
-                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt_1_det(info_1, info_gt)
+                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt_1_det(info_1)
                 score_results, class_results, box_results = nms_multiple_box(in_boxes, in_scores, in_class, in_logits, 0.5, num_det, method)
                 #class_results, score_results, box_results = match_box_nms(in_boxes, in_scores, in_class, in_logits, 0.5, num_det, method)
             else:
-                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt(info_1, info_2, info_gt)
+                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt(info_1, info_2)
                 score_results, class_results, box_results = nms_multiple_box(in_boxes, in_scores, in_class, in_logits, 0.5, num_det, method)
                 #class_results, score_results, box_results = match_box_nms(in_boxes, in_scores, in_class, in_logits, 0.5, num_det, method)
             
@@ -454,14 +589,14 @@ def train_late_fusion(det_1, det_2, anno):
             # If no detection in 1st model:
             elif len(info_1['bbox']) == 0:
                 #print('model 1 missing detection')
-                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt_1_det(info_2, info_gt)
+                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt_1_det(info_2, info_gt=info_gt)
                 score_results, class_results, out_bboxs = nms_multiple_box(in_boxes, in_scores, in_class, in_logits, 0.5, num_det)
             elif len(info_2['bbox']) == 0:
                 #print('model 2 missing detection')
-                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt_1_det(info_1, info_gt)
+                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt_1_det(info_1, info_gt=info_gt)
                 score_results, class_results, out_bboxs = nms_multiple_box(in_boxes, in_scores, in_class, in_logits, 0.5, num_det)
             else:
-                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt(info_1, info_2, info_gt)
+                in_boxes, in_scores, in_class, in_logits, in_prob, num_det = prepare_data_gt(info_1, info_2, info_gt=info_gt)
                 score_results, class_results, out_bboxs = nms_multiple_box(in_boxes, in_scores, in_class, in_logits, 0.5, num_det)
 
             if len(score_results):
@@ -558,10 +693,10 @@ if __name__ == '__main__':
     # User setting
     ################################
     time = 'All'
-    model_folder = 'out/models/'
+    model_folder = './'#'out/models/'
     use_bias = False
     penalty = 'l2'
-    method = 'avg_box_fusion' #'avg_box_fusion' #'wt_box_fusion'
+    method = 'wt_box_fusion' #'avg_box_fusion' #'wt_box_fusion'
     ################################
     model_1 = 'early_fusion'
     model_2 = 'mid_fusion'
