@@ -402,6 +402,74 @@ def draw_box(img, bbox, color):
     for i in range(len(bbox)):
         img = cv2.rectangle(img,  (int(bbox[i][0]+0.5), int(bbox[i][1]+0.5)),  (int(bbox[i][2]+0.5), int(bbox[i][3]+0.5)), color, 2)
     return img
+def nms_logits(dets, scores, classes, logits, thresh, method):
+    x1 = dets[:, 0] + classes * 640
+    y1 = dets[:, 1] + classes * 512
+    x2 = dets[:, 2] + classes * 640
+    y2 = dets[:, 3] + classes * 512
+    
+    out_logits = handle_logits(logits, classes)
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    #order = out_max_logits.argsort()[::-1]
+    order = scores.argsort()[::-1]
+    keep = []
+    match_scores = []
+    match_bboxs = []
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+        
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = w * h
+        ovr = inter / (areas[i] + areas[order[1:]] - inter)
+        
+        inds = np.where(ovr <= thresh)[0]
+        match = np.where(ovr > thresh)[0]
+        match_ind = order[match+1]
+
+        match_score = list(out_logits[match_ind])
+        match_bbox = list(dets[match_ind][:,:4])
+        original_score = out_logits[i].tolist()        
+        original_bbox = dets[i][:4]
+        if len(match_score)>0:
+            match_score += [original_score]
+            if method == 'avgLogits_softmax':  
+                final_score = np.mean(np.asarray(match_score), axis=0)
+                final_score = F.softmax(torch.Tensor(final_score), dim=0)[classes[i]].tolist()
+                final_bbox = avg_bbox_fusion(match_bbox)
+            elif method == 'sumLogits_softmax':
+                final_score = np.sum(np.asarray(match_score), axis=0)
+                final_score = F.softmax(torch.Tensor(final_score), dim=0)[classes[i]].tolist()
+                final_bbox = avg_bbox_fusion(match_bbox)
+    
+            match_scores.append(final_score)
+            match_bboxs.append(final_bbox)
+        else:
+            final_score = F.softmax(torch.Tensor(original_score), dim=0)[classes[i]].tolist()
+            match_scores.append(final_score)
+            #pdb.set_trace()
+            #print('softmax')
+            match_bboxs.append(original_bbox)
+            
+        #pdb.set_trace()
+        #print(match_scores)
+        order = order[inds + 1]
+        
+    #pdb.set_trace()
+    assert len(keep)==len(match_scores)
+    assert len(keep)==len(match_bboxs)
+
+    match_bboxs = match_bboxs
+    match_scores = torch.Tensor(match_scores)
+    match_classes = torch.Tensor(classes[keep])
+    return keep,match_scores,match_bboxs, match_classes
+
 def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
     evaluator.reset()
     img_folder = '../../../Datasets/FLIR/val/thermal_8_bit/'
@@ -445,7 +513,6 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
                 out_boxes = np.array(info_1['bbox'])
                 out_class = torch.Tensor(info_1['class'])
                 if method == 'avgLogits' or method == 'sumLogits':
-                    pdb.set_trace()
                     out_logits = np.array(info_1['class_logits'])[:, :3]
                     out_scores = []
                     for j in range(len(out_logits)):
@@ -523,12 +590,12 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method):
         out_info['instances'] = proposals
         outputs.append(out_info)
         evaluator.process(inputs, outputs)
-        """
+        
         img = draw_box(img, out_boxes, (0,255,0))
         out_img_name = 'out_img_baysian_fusion/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian_avg_bbox.jpg'
         cv2.imwrite(out_img_name, img)
         #pdb.set_trace()
-        
+        """
         if '09115' in file_name:
             out_img_name = 'out_img_baysian_fusion/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian_avg_bbox.jpg'
             pdb.set_trace()
@@ -557,14 +624,17 @@ if __name__ == '__main__':
     model_1 = 'early_fusion'
     model_2 = 'mid_fusion'
     model_3 = 'thermal_only'
+    print(' ------ Time: ', time, ' ------')
     if time == 'Day':
         val_file_name = 'thermal_annotations_4_channel_no_dogs_Day.json'#'RGB_annotations_4_channel_no_dogs.json'#'thermal_annotations_4_channel_no_dogs_Day.json'#
-        det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50_'+time+'_with_logits.json'
-        det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_'+time+'_with_logits.json'
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
     elif time == 'Night':
         val_file_name = 'thermal_annotations_4_channel_no_dogs_Night.json'
-        det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50_'+time+'_with_logits.json'
-        det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_'+time+'_with_logits.json'
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
     else:
         # more classes
         #det_file_1 = data_folder + 'val_mid_fusion_predictions_IOU50_with_logits.json'
@@ -574,27 +644,9 @@ if __name__ == '__main__':
         """
         3 class with multiclass probability score
         """
-        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_with_logits_3_class_with_multiclass_prob_score.json'
-        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_logits_3_class_with_multiclass_prob_score.json'
-        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_logits_3_class_with_multiclass_prob_score.json'
-        
-        
-        """
-        # 3 class
-        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_logits.json'
-        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_logits.json'
-        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_logits.json'
-        """
-        """
-        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_with_logits_3_class_new.json'
-        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_logits_3_class_new.json'
-        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_logits_3_class_new.json'
-        """
-        #val_file_name = 'thermal_annotations_4_channel_no_dogs_3_class.json'
-
-        #det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_with_logits_new.json'
-        #det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_logits_new.json'
-        #det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_logits_new.json'
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
         
         val_file_name = 'thermal_annotations_4_channel_no_dogs.json'
     
@@ -640,5 +692,5 @@ if __name__ == '__main__':
     det_3 = json.load(open(det_file_3, 'r'))
     evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_Day.out')
     #result = apply_late_fusion_and_evaluate(evaluator, det_1, det_2, 'nms')
-    method = 'baysian'#'baysian_wt_score_box'#'sumLogits_softmax'#'sumLogits'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
+    method = 'baysian_avg_bbox'#'baysian_wt_score_box'#'sumLogits_softmax'#'sumLogits'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
     result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, det_3, method)
