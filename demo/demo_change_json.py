@@ -8,7 +8,7 @@ import json
 from os.path import isfile, join
 import cv2
 
-data_set = 'val'
+data_set = 'train'
 in_anno_file = '../../../Datasets/FLIR/'+data_set+'/thermal_annotations.json'#thermal_annotations_4_channel_no_dogs.json'
 out_anno_file = '../../../Datasets/FLIR/'+data_set+'/thermal_RGBT_pairs_3_class.json'
 img_folder = '../../../Datasets/FLIR/'+data_set+'/RGB'
@@ -20,7 +20,7 @@ categories = data['categories']
 licenses = data['licenses']
 annos = data['annotations']
 images = data['images']
-
+pdb.set_trace()
 annotations = []
 # Remove dog categories
 for i in range(len(annos)):
