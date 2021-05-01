@@ -83,28 +83,40 @@ def bayesian_fusion(match_score_vec):
     return fused_positive_normalized
 
 def bayesian_fusion_multiclass(match_score_vec, pred_class):
-    log_positive_scores = np.log(match_score_vec[:,pred_class])
-    pos_score = None
-    neg_score = np.zeros(match_score_vec.shape)
-    cnt = 0
-    for i in range(match_score_vec.shape[1]):
-        if i == pred_class:
-            pos_score = match_score_vec[:, i]
-        else:
-            neg_score[:,cnt] = match_score_vec[:, i]
-            cnt += 1
-    
-    # Background probability
-    neg_score[:,-1] = 1 - np.sum(match_score_vec, axis=1) 
-    
-    log_positive_scores = np.log(pos_score)
-    log_negative_scores = np.log(neg_score)
-    
-    #log_negative_scores = np.log(np.delete(match_score_vec, pred_class, 1))
-    fused_positive = np.exp(np.sum(log_positive_scores))
-    fused_negative = np.sum(np.exp(np.sum(log_negative_scores, axis=0)))
-    out = fused_positive / (fused_positive + fused_negative)
-    return out
+    scores = np.zeros((match_score_vec.shape[0], 4))
+    scores[:,:3] = match_score_vec
+    scores[:,-1] = 1 - np.sum(match_score_vec, axis=1)
+    log_scores = np.log(scores)
+    sum_logits = np.sum(log_scores, axis=0)
+    exp_logits = np.exp(sum_logits)
+    out_score = exp_logits[pred_class] / np.sum(exp_logits)
+    return out_score
+
+def prior(num_bg=1000):
+    #num_person = 21744
+    #num_bike = 3806
+    #num_car = 39372
+    num_person = 21965
+    num_bike = 1205
+    num_car = 14013
+    prior_person = num_person/(num_person + num_bike + num_car + num_bg)
+    prior_bike = num_bike/(num_person + num_bike + num_car + num_bg)
+    prior_car = num_car/(num_person + num_bike + num_car + num_bg)
+    prior_bg = num_bg/(num_person + num_bike + num_car + num_bg)
+    #print('[{:.2f}, {:.2f}, {:.2f}, {:.2f}]'.format(prior_person, prior_bike, prior_car, prior_bg))
+    priors = [prior_person, prior_bike, prior_car, prior_bg]
+    return priors
+
+def bayesian_fusion_multiclass_prior(match_score_vec, pred_class, class_prior):
+    scores = np.zeros((match_score_vec.shape[0], 4))
+    scores[:,:3] = match_score_vec
+    scores[:,-1] = 1 - np.sum(match_score_vec, axis=1)
+    log_scores = np.log(scores)
+    sum_logits = np.sum(log_scores, axis=0) - np.log(class_prior)
+    exp_logits = np.exp(sum_logits)
+    out_score = exp_logits[pred_class] / np.sum(exp_logits)
+    #pdb.set_trace()
+    return out_score
     
 def nms_1(info_1, info_2, info_3=''):
     # Boxes
@@ -218,27 +230,33 @@ def nms_bayesian(dets, scores, classes, probs, thresh, method):
         if len(match_score)>0:
             match_score += [original_score]
             match_prob += [original_prob]
-            #pdb.set_trace()
             if method == 'avg_score':
                 final_score = np.mean(np.asarray(match_score))
                 final_bbox = avg_bbox_fusion(match_bbox)
-            elif method == 'baysian':
-                #final_score = bayesian_fusion_multiclass(np.asarray(match_score))
-
+            elif method == 'bayesian':
                 final_score = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])
                 final_bbox = avg_bbox_fusion(match_bbox)
             elif method == 'baysian_avg_bbox':
-                final_score = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])
-                #final_score = bayesian_fusion_multiclass(np.asarray(match_score))
+                final_score = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])                
                 match_bbox += [original_bbox]
                 final_bbox = avg_bbox_fusion(match_bbox)
-            elif method == 'baysian_wt_score_box':
-                final_score = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])
-                #final_score = bayesian_fusion(np.asarray(match_score))
+            elif method == 'bayesian_wt_score_box':
+                final_score = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])                
                 match_bbox += [original_bbox]
                 final_bbox = weighted_box_fusion(match_bbox, match_score)
-
-            #final_bbox = avg_bbox_fusion(match_bbox)
+            elif method == 'bayesian_prior_wt_score_box':
+                #num_background = 8000
+                #priors = prior(num_background)
+                #p4person = 1, 0.5, 1.5,
+                p4person = 4
+                class_prior = [p4person,1,1,1]
+                class_prior /= np.sum(class_prior)
+                #print(class_prior)
+                #pdb.set_trace()
+                final_score = bayesian_fusion_multiclass_prior(np.asarray(match_prob), classes[i], class_prior)                
+                match_bbox += [original_bbox]
+                final_bbox = weighted_box_fusion(match_bbox, match_score)
+            
             match_scores.append(final_score)
             match_bboxs.append(final_bbox)
         else:
@@ -344,10 +362,18 @@ def fusion(method, info_1, info_2, info_3=''):
         out_boxes = in_boxes
         out_scores = torch.Tensor(in_scores)
         out_class = torch.Tensor(in_class)
-    elif method == 'baysian' or method == 'baysian_avg_bbox' or method == 'avg_score' or method == 'baysian_wt_score_box' or method == 'baysian_wt_score_box':
+    elif method == 'bayesian' or method == 'baysian_avg_bbox' or method == 'avg_score' or method == 'bayesian_wt_score_box' or method == 'bayesian_prior_wt_score_box':
         threshold = 0.5
         #in_boxes, in_scores, in_class = prepare_data(info_1, info_2, info3=info_3)
         in_boxes, in_scores, in_class, in_logits, in_prob = prepare_data(info_1, info_2, info3=info_3)
+        #pdb.set_trace()
+        # Cutting off scores under threshold
+        score_thr = 0.87
+        keep_ids = np.where(in_scores > score_thr)
+        in_boxes = in_boxes[keep_ids]
+        in_scores = in_scores[keep_ids]
+        in_class = in_class[keep_ids]
+        in_prob = in_prob[keep_ids]
         #keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, threshold, method)
         keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, in_prob, threshold, method)
     elif method == 'avgLogits_softmax' or method == 'sumLogits_softmax':
@@ -356,13 +382,26 @@ def fusion(method, info_1, info_2, info_3=''):
         keep, out_scores, out_boxes, out_class = nms_logits(in_boxes, in_scores, in_class, in_logits, threshold, method)
     
     return out_boxes, out_scores, out_class
-def draw_box(img, bbox, color):
+def draw_box(img, bbox, pred_class, color):
+    class_name = ['person', 'bike', 'car']
+    # font
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    # fontScale
+    fontScale = 0.8
+    # Line thickness of 2 px
+    thickness = 2
+    color2 = (0, 130, 255)
     for i in range(len(bbox)):
         img = cv2.rectangle(img,  (int(bbox[i][0]+0.5), int(bbox[i][1]+0.5)),  (int(bbox[i][2]+0.5), int(bbox[i][3]+0.5)), color, 2)
+    thickness = 2
+    for i in range(len(bbox)):
+        min_x = max(int(bbox[i][0] - 5), 0)
+        min_y = max(int(bbox[i][1] - 5), 0)        
+        img = cv2.putText(img, class_name[int(pred_class[i])], (min_x, min_y), font, fontScale, color2, 2, cv2.LINE_AA)
     return img
 def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=''):
     evaluator.reset()
-    img_folder = '../../../Datasets/FLIR/val/thermal_8_bit/'
+    img_folder = '../../../Datasets/FLIR/video/thermal_8_bit/'#'../../../Datasets/FLIR/val/thermal_8_bit/'
     
     num_img = len(det_2['image'])
     count_1=0
@@ -451,7 +490,7 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3='
             out_boxes, out_scores, out_class = fusion(method, info_1, info_2, info_3=info_3)
             
         file_name = img_folder + info_1['img_name'].split('.')[0] + '.jpeg'
-        img = cv2.imread(file_name)
+        img = cv2.imread(file_name)        
         H, W, _ = img.shape
 
         # Handle inputs
@@ -474,18 +513,21 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3='
         out_info['instances'] = proposals
         outputs.append(out_info)
         evaluator.process(inputs, outputs)
-        #pdb.set_trace()
-        """
-        img = draw_box(img, out_boxes, (0,255,0))
-        out_img_name = 'out_img_baysian_fusion/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian_avg_bbox.jpg'
-        cv2.imwrite(out_img_name, img)
-        #pdb.set_trace()
         
-        if '09115' in file_name:
-            out_img_name = 'out_img_baysian_fusion/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian_avg_bbox.jpg'
-            pdb.set_trace()
-            cv2.imwrite(out_img_name, img)
+        img = draw_box(img, out_boxes, out_class, (0,255,0))
+        out_img_name = 'iccv/bayesian_0_8_text/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian.jpg'
+        
+        cv2.imwrite(out_img_name, img)
+        
         """
+        if '00184' in file_name:
+            out_img_name = 'iccv/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_bayesian_avg_bbox.jpg'
+            
+            cv2.imwrite(out_img_name, img)
+            pdb.set_trace()
+        """
+        
+                
         
     results = evaluator.evaluate(out_eval_path='FLIR_pooling_.out')
     
@@ -496,11 +538,11 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3='
 
 
 if __name__ == '__main__':
-    data_set = 'val'
-    data_folder = 'out/box_predictions/3_class/'
+    data_set = 'video'#'val'
+    data_folder = 'iccv/video/'#'out/box_predictions/3_class/'
     dataset = 'FLIR'
     IOU = 50                 
-    time = 'Day'
+    time = 'all'
     model_1 = 'early_fusion'
     model_2 = 'mid_fusion'
     model_3 = 'thermal_only'
@@ -526,8 +568,12 @@ if __name__ == '__main__':
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+
+        det_file_1 = data_folder + 'video_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        det_file_2 = data_folder + 'video_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        det_file_3 = data_folder + 'video_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
         
-        val_file_name = 'thermal_annotations_4_channel_no_dogs.json'
+        val_file_name = 'thermal_annotations.json'#'thermal_RGBT_pairs_3_class.json'#'thermal_annotations_4_channel_no_dogs.json'
     
     print('detection file 1:', det_file_1)
     print('detection file 2:', det_file_2)
@@ -538,8 +584,10 @@ if __name__ == '__main__':
     out_folder = 'out/box_comparison/'
     #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs.json'
     
-    val_json_path = '../../../Datasets/'+dataset+'/val/' + val_file_name
-    val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
+    #val_json_path = '../../../Datasets/'+dataset+'/val/' + val_file_name
+    #val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
+    val_json_path = '../../../Datasets/'+dataset+'/video/' + val_file_name
+    val_folder = '../../../Datasets/FLIR/video/thermal_8_bit'
 
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
@@ -569,7 +617,7 @@ if __name__ == '__main__':
     det_1 = json.load(open(det_file_1, 'r'))
     det_2 = json.load(open(det_file_2, 'r'))
     det_3 = json.load(open(det_file_3, 'r'))
-    evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_Day.out')
-    method = 'sumLogits_softmax'#'baysian_wt_score_box'#'sumLogits_softmax'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'baysian'#'nms'
-    #result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=det_3)
-    result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method)
+    evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_video_avg_box_all.out')
+    method = 'baysian_avg_bbox'#'bayesian_prior_wt_score_box'#'bayesian_wt_score_box'#'sumLogits_softmax'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'bayesian'#'nms'
+    result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=det_3)
+    #result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method)
