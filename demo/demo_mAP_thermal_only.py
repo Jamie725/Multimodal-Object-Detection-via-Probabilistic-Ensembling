@@ -14,22 +14,6 @@ import os
 import pickle
 import pdb
 
-def mapper(dataset_dict):
-    # Implement a mapper, similar to the default DatasetMapper, but with your own customizations
-    dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
-    pdb.set_trace()
-    image = utils.read_image(dataset_dict["file_name"], format="BGR")
-    image, transforms = T.apply_transform_gens([T.Resize((800, 800))], image)
-    dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
-    annos = [
-		utils.transform_instance_annotations(obj, transforms, image.shape[:2])
-		for obj in dataset_dict.pop("annotations")
-		if obj.get("iscrowd", 0) == 0
-	]
-    instances = utils.annotations_to_instances(annos, image.shape[:2])
-    dataset_dict["instances"] = utils.filter_empty_instances(instances)
-    return dataset_dict
-
 def test(cfg, dataset_name, file_name='FLIR_thermal_only_result.out'):
     
     cfg.DATASETS.TEST = (dataset_name, )
