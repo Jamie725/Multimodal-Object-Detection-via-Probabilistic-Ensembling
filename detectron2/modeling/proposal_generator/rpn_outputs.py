@@ -115,7 +115,6 @@ def find_top_rpn_proposals(
         topk_proposals.append(topk_proposals_i)
         topk_scores.append(topk_scores_i)
         level_ids.append(torch.full((num_proposals_i,), level_id, dtype=torch.int64, device=device))
-        #pdb.set_trace()
 
     # 2. Concat all levels together
     topk_scores = cat(topk_scores, dim=1)
@@ -131,13 +130,11 @@ def find_top_rpn_proposals(
 
         valid_mask = torch.isfinite(boxes.tensor).all(dim=1) & torch.isfinite(scores_per_img)
         if not valid_mask.all():
-            try:
-                if training:
-                    raise FloatingPointError(
-                        "Predicted boxes or scores contain Inf/NaN. Training has diverged."
-                    )
-            except:
-                import pdb; pdb.set_trace()
+            if training:
+                raise FloatingPointError(
+                    "Predicted boxes or scores contain Inf/NaN. Training has diverged."
+                )
+
             boxes = boxes[valid_mask]
             scores_per_img = scores_per_img[valid_mask]
             lvl = lvl[valid_mask]
@@ -147,7 +144,6 @@ def find_top_rpn_proposals(
         keep = boxes.nonempty(threshold=min_box_side_len)
         if keep.sum().item() != len(boxes):
             boxes, scores_per_img, lvl = boxes[keep], scores_per_img[keep], lvl[keep]
-        #pdb.set_trace()
         keep = batched_nms(boxes.tensor, scores_per_img, lvl, nms_thresh)
         # In Detectron1, there was different behavior during training vs. testing.
         # (https://github.com/facebookresearch/Detectron/issues/459)
@@ -162,7 +158,6 @@ def find_top_rpn_proposals(
         res.proposal_boxes = boxes[keep]
         res.objectness_logits = scores_per_img[keep]
         results.append(res)
-        #import pdb; pdb.set_trace()
     return results
 
 

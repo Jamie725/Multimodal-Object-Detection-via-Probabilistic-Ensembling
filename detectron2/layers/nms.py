@@ -23,9 +23,7 @@ def batched_nms(boxes, scores, idxs, iou_threshold):
         result_mask[mask[keep]] = True
     keep = result_mask.nonzero().view(-1)
     keep = keep[scores[keep].argsort(descending=True)]
-    #pdb.set_trace()
     return keep
-
 
 # Note: this function (nms_rotated) might be moved into
 # torchvision/ops/boxes.py in the future

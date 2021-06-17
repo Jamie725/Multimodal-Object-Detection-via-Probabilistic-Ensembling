@@ -418,7 +418,6 @@ class COCOeval:
             'recall':   recall,
             'scores': scores,
         }
-        #pdb.set_trace()
         toc = time.time()
         print('DONE (t={:0.2f}s).'.format( toc-tic))
 
@@ -457,7 +456,6 @@ class COCOeval:
             else:
                 mean_s = np.mean(s[s>-1])
             print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
-            #pdb.set_trace()
             return mean_s
         def _summarizeDets():
             stats = np.zeros((12,))

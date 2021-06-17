@@ -130,7 +130,6 @@ def inference_on_dataset(model, data_loader, evaluator):
                 torch.cuda.synchronize()
             total_compute_time += time.perf_counter() - start_compute_time
             evaluator.process(inputs, outputs)
-            #pdb.set_trace()
 
             iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
             seconds_per_img = total_compute_time / iters_after_start
@@ -162,7 +161,6 @@ def inference_on_dataset(model, data_loader, evaluator):
     )
     
     results = evaluator.evaluate()
-    #pdb.set_trace()
     # An evaluator may return None when not in main process.
     # Replace it by an empty dict instead to make it easier for downstream code to handle
     if results is None:

@@ -136,14 +136,12 @@ def fast_rcnn_inference_single_image(
     result.pred_boxes = Boxes(boxes)
     result.scores = scores
     result.pred_classes = filter_inds[:, 1]
-    # Jamie
+
     # Save out logits
-    if not class_logits == None:
-        #result.class_logits = class_logits[filter_inds[:,0]]
+    if not class_logits == None:        
         result.class_logits = class_logits[keep]
-        result.prob_score = predicted_probs[keep]
-        #class_logits = class_logits[filter_inds[:,0]]
-        #result.class_logits = class_logits[keep]
+        result.prob_score = predicted_probs[keep]        
+    
     return result, filter_inds[:, 0]
 
 
@@ -218,7 +216,6 @@ class FastRCNNOutputs(object):
         bg_class_ind = self.pred_class_logits.shape[1] - 1
 
         fg_inds = (self.gt_classes >= 0) & (self.gt_classes < bg_class_ind)
-        #pdb.set_trace()
         num_fg = fg_inds.nonzero().numel()
         fg_gt_classes = self.gt_classes[fg_inds]
         fg_pred_classes = pred_classes[fg_inds]
@@ -324,20 +321,10 @@ class FastRCNNOutputs(object):
         num_pred = len(self.proposals)
         B = self.proposals.tensor.shape[1]
         K = self.pred_proposal_deltas.shape[1] // B
-        #import pdb; pdb.set_trace()
-        """
         boxes = self.box2box_transform.apply_deltas(
             self.pred_proposal_deltas.view(num_pred * K, B),
             self.proposals.tensor.unsqueeze(1).expand(num_pred, K, B).reshape(-1, B),
         )
-        """
-        try:
-            boxes = self.box2box_transform.apply_deltas(
-                self.pred_proposal_deltas.view(num_pred * K, B),
-                self.proposals.tensor.unsqueeze(1).expand(num_pred, K, B).reshape(-1, B),
-            )
-        except:
-            import pdb; pdb.set_trace()
         
         return boxes.view(num_pred, K * B)
 
@@ -412,7 +399,6 @@ class FastRCNNOutputs(object):
         boxes = self.predict_boxes()
         scores = self.predict_probs()
         image_shapes = self.image_shapes
-        #pdb.set_trace()
         if self.enable_output_pred_logits:
             return fast_rcnn_inference(
                 boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=self.pred_class_logits
@@ -503,7 +489,6 @@ class FastRCNNOutputLayers(nn.Module):
             x = torch.flatten(x, start_dim=1)
         scores = self.cls_score(x)
         proposal_deltas = self.bbox_pred(x)
-        #import pdb; pdb.set_trace()
         return scores, proposal_deltas
 
     # TODO: move the implementation to this class.

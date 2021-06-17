@@ -81,7 +81,6 @@ _C.INPUT.FORMAT = "BGR"
 # The ground truth mask format that the model will use.
 # Mask R-CNN supports either "polygon" or "bitmask" as ground truth.
 _C.INPUT.MASK_FORMAT = "polygon"  # alternative: "bitmask"
-# Jamie
 _C.INPUT.NUM_IN_CHANNELS = 3
 # -----------------------------------------------------------------------------
 # Dataset

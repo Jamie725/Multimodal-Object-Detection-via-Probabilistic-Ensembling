@@ -32,7 +32,7 @@ class GeneralizedRCNN(nn.Module):
 
         self.device = torch.device(cfg.MODEL.DEVICE)
         self.backbone_2 = None
-        #Jamie
+
         if cfg.INPUT.NUM_IN_CHANNELS != 3:
             if cfg.INPUT.FORMAT == 'BGRTTT':
                 input_shape = ShapeSpec(channels=3)
@@ -40,19 +40,14 @@ class GeneralizedRCNN(nn.Module):
             else:    
                 input_shape = ShapeSpec(channels=cfg.INPUT.NUM_IN_CHANNELS)
                 
-            # Jamie
-            #if cfg.INPUT.FORMAT = 'BGRTTT':
-            #    self.backbone =
             self.backbone = build_backbone(cfg, input_shape)
             num_channels = cfg.INPUT.NUM_IN_CHANNELS
-            #Jamie
             print(num_channels,' channel input')
         
         else:
             print('3 channel input')
             self.backbone = build_backbone(cfg)
             num_channels = len(cfg.MODEL.PIXEL_MEAN)
-            #import pdb; pdb.set_trace()
         
         if cfg.INPUT.FORMAT == 'BGRTTT':
             output_shape = {}
@@ -80,9 +75,7 @@ class GeneralizedRCNN(nn.Module):
         self.input_format = cfg.INPUT.FORMAT
         assert len(cfg.MODEL.PIXEL_MEAN) == len(cfg.MODEL.PIXEL_STD)
         
-        self.to(self.device)
-        
-        # Jamie
+        self.to(self.device)        
         self.blur_rgb = False
         if cfg.MODEL.BLUR_RGB:
             self.blur_rgb = True
@@ -146,7 +139,6 @@ class GeneralizedRCNN(nn.Module):
         sigma = 3
         large_feature_map_key = ['p2', 'p3', 'p4']
         small_feature_map_key = ['p5','p6']
-        import pdb; pdb.set_trace()
         ft_map = input_features['p2']
         gaussian_blur(ft_map,(filter_size,filter_size), (sigma,sigma))
         return None
@@ -319,7 +311,6 @@ class ProposalNetwork(nn.Module):
             input_shape = ShapeSpec(channels=3)
             self.backbone_2 = build_backbone(cfg, input_shape)
         self.backbone = build_backbone(cfg)
-        import pdb; pdb.set_trace()
         self.proposal_generator = build_proposal_generator(cfg, self.backbone.output_shape())
 
         pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device).view(-1, 1, 1)
@@ -338,7 +329,6 @@ class ProposalNetwork(nn.Module):
                 The dict contains one key "proposals" whose value is a
                 :class:`Instances` with keys "proposal_boxes" and "objectness_logits".
         """
-        import pdb; pdb.set_trace()
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [self.normalizer(x) for x in images]
         images = ImageList.from_tensors(images, self.backbone.size_divisibility)

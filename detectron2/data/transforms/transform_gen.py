@@ -210,8 +210,6 @@ class ResizeShortestEdge(TransformGen):
             neww = neww * scale
         neww = int(neww + 0.5)
         newh = int(newh + 0.5)
-        # Jamie
-        #import pdb; pdb.set_trace()
         return ResizeTransform(h, w, newh, neww, self.interp)
 
 
@@ -238,7 +236,6 @@ class RandomCrop(TransformGen):
         assert h >= croph and w >= cropw, "Shape computation in {} has bugs.".format(self)
         h0 = np.random.randint(h - croph + 1)
         w0 = np.random.randint(w - cropw + 1)
-        import pdb; pdb.set_trace()
         return CropTransform(w0, h0, cropw, croph)
 
     def get_crop_size(self, image_size):

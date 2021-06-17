@@ -160,7 +160,6 @@ def transform_proposals(dataset_dict, image_shape, transforms, min_box_side_len,
         proposals.proposal_boxes = boxes[:proposal_topk]
         proposals.objectness_logits = objectness_logits[:proposal_topk]
         dataset_dict["proposals"] = proposals
-        #pdb.set_trace()
 
 def transform_instance_annotations(
     annotation, transforms, image_size, *, keypoint_hflip_indices=None

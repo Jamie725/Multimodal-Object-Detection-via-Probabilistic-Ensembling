@@ -186,7 +186,6 @@ class FLIREvaluator(DatasetEvaluator):
 
         self._logger.info("Evaluating predictions ...")
 
-        #pdb.set_trace()
         for task in sorted(tasks):
             coco_eval = (
                 _evaluate_predictions_on_coco(
@@ -226,7 +225,7 @@ class FLIREvaluator(DatasetEvaluator):
                 "ids": ids,
                 "bbox_mode": bbox_mode,
             }
-            #pdb.set_trace()
+
             with PathManager.open(os.path.join(self._output_dir, "box_proposals.pkl"), "wb") as f:
                 pickle.dump(proposal_data, f)
 
@@ -325,8 +324,7 @@ def instances_to_coco_json(instances, img_id):
     num_instance = len(instances)
     if num_instance == 0:
         return []
-    #pdb.set_trace()
-    #Jamie
+
     valid_class = [0, 1, 2, 5, 7, 16]
 
     boxes = instances.pred_boxes.tensor.numpy()
@@ -364,12 +362,9 @@ def instances_to_coco_json(instances, img_id):
                     "bbox": boxes[k],
                     "score": scores[k],
                 }
-                #pdb.set_trace()
+
                 if classes[k] == 5 or classes[k] == 7:
-                    result["category_id"] = 2
-                    #pdb.set_trace()
-                #print('classes = ', classes[k])
-                
+                    result["category_id"] = 2                
                 if has_mask:
                     result["segmentation"] = rles[k]
                 if has_keypoints:
@@ -384,7 +379,6 @@ def instances_to_coco_json(instances, img_id):
                 results.append(result)
                 break
         
-    #pdb.set_trace()
     return results
 
 

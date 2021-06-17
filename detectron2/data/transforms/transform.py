@@ -41,7 +41,6 @@ class ExtentTransform(Transform):
             resample=interp if interp else self.interp,
             fill=self.fill,
         )
-        #import pdb; pdb.set_trace()
         return np.asarray(ret)
 
     def apply_coords(self, coords):
@@ -80,7 +79,6 @@ class ResizeTransform(Transform):
         self._set_attributes(locals())
 
     def apply_image(self, img, interp=None):
-        # Jamie
         if img.shape[-1] == 4:
             ret = cv2.resize(img, (self.new_w, self.new_h))
         elif img.shape[-1] == 6:
@@ -91,8 +89,7 @@ class ResizeTransform(Transform):
         elif img.shape[-1] == 2:
             ret = cv2.resize(img, (self.new_w, self.new_h))
         else:
-            assert img.shape[:2] == (self.h, self.w)
-            #import pdb; pdb.set_trace()
+            assert img.shape[:2] == (self.h, self.w)            
             import numpy as np
             pil_image = Image.fromarray(img.astype(np.uint8))
             interp_method = interp if interp is not None else self.interp

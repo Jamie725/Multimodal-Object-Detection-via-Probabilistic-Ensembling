@@ -57,9 +57,6 @@ class StandardRPNHead(nn.Module):
             len(set(num_cell_anchors)) == 1
         ), "Each level must have the same number of cell anchors"
         num_cell_anchors = num_cell_anchors[0]
-        #import pdb; pdb.set_trace()
-        #if cfg.INPUT.FORMAT == 'BGRTTT':
-        #    in_channels *= 2
         self.conv = nn.Conv2d(in_channels*2, in_channels*2, kernel_size=3, stride=1, padding=1)
         # 3x3 conv for the hidden representation
         self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
