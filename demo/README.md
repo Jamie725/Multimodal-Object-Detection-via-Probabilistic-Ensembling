@@ -1,8 +1,21 @@
 
-## Detectron2 Demo
+## Usage
 
-We provide a command line tool to run a simple demo of builtin models.
-The usage is explained in [GETTING_STARTED.md](../GETTING_STARTED.md).
+We provide the training, testing, and visualization code of thermal-only, early-fusion, middle-fusion and Bayesian fusion.
 
-See our [blog post](https://ai.facebook.com/blog/-detectron2-a-pytorch-based-modular-object-detection-library-)
-for a high-quality demo generated with this tool.
+Training:
+    python demo_train_thermal_only.py
+    python demo_train_early_fusion.py
+    python demo_train_middle_fusion.py
+
+Test mAP:
+    python demo_mAP_thermal_only.py
+    python demo_mAP_early_fusion.py
+    python demo_mAP_middle_fusion.py
+
+Bayesian fusion:
+    First, you should save predictions from different models 
+    -> python save_predictions.py
+
+    Then, you can change and load the predictions in demo_bayesian_fusion.py
+    -> python demo_bayesian_fusion.py
