@@ -20,6 +20,10 @@ Please follow the [README.md](demo/README.md) in demo.
 
 Please download the trained models [here](https://drive.google.com/file/d/1v0-cQCrycUiNjrDotoFleeW6Slm_9j-K/view?usp=sharing)
 
+## Sample predicted results
+
+Please download the predicted results of model thermal-only, early-fusion, middle-fusion [here](https://drive.google.com/file/d/1O8mx9bb-uy4432BsrPG7xVX0WW53oFWK/view?usp=sharing)
+
 ## License
 
 Detectron2 is released under the [Apache 2.0 license](LICENSE).
