@@ -72,8 +72,15 @@ class DatasetMapper:
         """
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
         # USER: Write your own image loading if it's not from a file
-        image = utils.read_image(dataset_dict["file_name"], format=self.img_format)
-        utils.check_image_size(dataset_dict, image)
+        try:
+            image = utils.read_image(dataset_dict["file_name"], format=self.img_format)
+        except:
+            import pdb; pdb.set_trace()
+        
+        try:
+            utils.check_image_size(dataset_dict, image)
+        except:
+            import pdb; pdb.set_trace()
 
         if "annotations" not in dataset_dict:
             image, transforms = T.apply_transform_gens(
@@ -89,6 +96,7 @@ class DatasetMapper:
                     np.random.choice(dataset_dict["annotations"]),
                 )
                 image = crop_tfm.apply_image(image)
+            
             image, transforms = T.apply_transform_gens(self.tfm_gens, image)
             if self.crop_gen:
                 transforms = crop_tfm + transforms
@@ -146,4 +154,5 @@ class DatasetMapper:
             sem_seg_gt = transforms.apply_segmentation(sem_seg_gt)
             sem_seg_gt = torch.as_tensor(sem_seg_gt.astype("long"))
             dataset_dict["sem_seg"] = sem_seg_gt
+        
         return dataset_dict

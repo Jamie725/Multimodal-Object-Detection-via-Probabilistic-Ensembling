@@ -559,14 +559,13 @@ class StandardROIHeads(ROIHeads):
             # heads. But when `self.train_on_pred_boxes is True`, proposals will contain boxes
             # predicted by the box head.
             losses.update(self._forward_mask(features, proposals))
-            losses.update(self._forward_keypoint(features, proposals))
+            losses.update(self._forward_keypoint(features, proposals))            
             return proposals, losses
         else:
             pred_instances = self._forward_box(features, proposals)
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
-            pred_instances = self.forward_with_given_boxes(features, pred_instances)
-            #import pdb; pdb.set_trace()
+            pred_instances = self.forward_with_given_boxes(features, pred_instances)                      
             return pred_instances, {}
 
     def forward_with_given_boxes(
@@ -615,10 +614,10 @@ class StandardROIHeads(ROIHeads):
             In training, a dict of losses.
             In inference, a list of `Instances`, the predicted instances.
         """
-        
-        features = [features[f] for f in self.in_features]
-        box_features = self.box_pooler(features, [x.proposal_boxes for x in proposals])
-        box_features = self.box_head(box_features)
+        # Generate 1000 predictions        
+        features = [features[f] for f in self.in_features]        
+        box_features = self.box_pooler(features, [x.proposal_boxes for x in proposals])        
+        box_features = self.box_head(box_features)        
         predictions = self.box_predictor(box_features)
         del box_features
         #import pdb;pdb.set_trace()

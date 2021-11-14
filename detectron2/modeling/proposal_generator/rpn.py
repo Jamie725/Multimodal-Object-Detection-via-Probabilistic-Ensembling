@@ -68,8 +68,8 @@ class StandardRPNHead(nn.Module):
         # 1x1 conv for predicting box2box transform deltas
         self.anchor_deltas = nn.Conv2d(
             in_channels, num_cell_anchors * box_dim, kernel_size=1, stride=1
-        )
-
+        )        
+    
         for l in [self.conv, self.objectness_logits, self.anchor_deltas]:
             nn.init.normal_(l.weight, std=0.01)
             nn.init.constant_(l.bias, 0)
@@ -80,11 +80,11 @@ class StandardRPNHead(nn.Module):
             features (list[Tensor]): list of feature maps
         """
         pred_objectness_logits = []
-        pred_anchor_deltas = []
+        pred_anchor_deltas = []        
         for x in features:
-            t = F.relu(self.conv(x))
+            t = F.relu(self.conv(x))            
             pred_objectness_logits.append(self.objectness_logits(t))
-            pred_anchor_deltas.append(self.anchor_deltas(t))
+            pred_anchor_deltas.append(self.anchor_deltas(t))            
         return pred_objectness_logits, pred_anchor_deltas
 
 
@@ -176,6 +176,7 @@ class RPN(nn.Module):
             import math
             if math.isnan(outputs.predict_proposals()[0][0][0][0]):
                 import pdb; pdb.set_trace()
+            
             proposals = find_top_rpn_proposals(
                 outputs.predict_proposals(),
                 outputs.predict_objectness_logits(),
@@ -186,5 +187,5 @@ class RPN(nn.Module):
                 self.min_box_side_len,
                 self.training,
             )
-
+            #import pdb; pdb.set_trace()
         return proposals, losses

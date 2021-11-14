@@ -40,7 +40,7 @@ Naming convention:
 """
 
 
-def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=None):
+def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=None, estimate_uncertainty=False):
     """
     Call `fast_rcnn_inference_single_image` for all images.
 
@@ -69,22 +69,63 @@ def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, t
     if not class_logits == None:
         result_per_image = [
             fast_rcnn_inference_single_image(
-                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits
+                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits, estimate_uncertainty=estimate_uncertainty
             )
             for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
         ]
     else:
         result_per_image = [
             fast_rcnn_inference_single_image(
-                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image
+                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, estimate_uncertainty=estimate_uncertainty
             )
             for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
         ]
     return [x[0] for x in result_per_image], [x[1] for x in result_per_image]
 
+def nms_calc_uncertainty(final_dets, final_scores, dets, scores, thresh):
+    import numpy as np
+    
+    x1 = dets[:, 0]
+    y1 = dets[:, 1]
+    x2 = dets[:, 2]
+    y2 = dets[:, 3]
+    
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    order = []
+    for i in range(len(final_scores)):
+        id = np.where((final_scores[i] - scores) == 0)[0][0]
+        order.append(id)
+        
+    order = np.array(order)
+    #order = scores.argsort()[::-1]
+    
+    keep = []
+    stds = []
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+        xx1 = np.maximum(x1[i], x1[:])
+        yy1 = np.maximum(y1[i], y1[:])
+        xx2 = np.minimum(x2[i], x2[:])
+        yy2 = np.minimum(y2[i], y2[:])
+        
+        width = np.maximum(0.0, xx2 - xx1 + 1)
+        height = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = width * height        
+        ovr = inter / (areas[i] + areas[:] - inter)
+        
+        # Find bbox with overlapping over threshold
+        inds = np.where(ovr >= thresh)[0]
+        ovrlp_boxes = dets[inds]
+        std = np.std(ovrlp_boxes, axis=0)
+        avg_std = np.mean(std)
+        stds.append(avg_std)        
+        order = order[1:]    
+    return stds
 
+#Jamie
 def fast_rcnn_inference_single_image(
-    boxes, scores, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits=None
+    boxes, scores, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits=None, estimate_uncertainty=False
 ):
     """
     Single-image inference. Return bounding-box detection results by thresholding
@@ -115,6 +156,14 @@ def fast_rcnn_inference_single_image(
     
     # Get box ID with predicted class label: [box id, class label]
     filter_inds = filter_mask.nonzero()
+    
+    import numpy as np
+    class_id = np.argmax(scores.cpu().numpy(), axis=1)
+    class_id = np.array([np.arange(1000), class_id])
+    class_id = np.swapaxes(class_id, 1, 0)
+    boxes_one_class = boxes[class_id[:,0], class_id[:,1],:].cpu().numpy()
+    scores_one_class = np.max(scores.cpu().numpy(), axis=1)
+    
 
     if not class_logits == None:
         class_logits = class_logits[filter_inds[:,0]]
@@ -124,27 +173,37 @@ def fast_rcnn_inference_single_image(
         boxes = boxes[filter_inds[:, 0], 0]
     else:
         boxes = boxes[filter_mask]
-    scores = scores[filter_mask]
-
+    scores_filtered = scores[filter_mask]
+    
     # Apply per-class NMS
-    keep = batched_nms(boxes, scores, filter_inds[:, 1], nms_thresh)
+    keep = batched_nms(boxes, scores_filtered, filter_inds[:, 1], nms_thresh)    
+    
     if topk_per_image >= 0:
         keep = keep[:topk_per_image]
-    boxes, scores, filter_inds = boxes[keep], scores[keep], filter_inds[keep]
+    
+    boxes_final, scores_final, filter_inds_final = boxes[keep], scores_filtered[keep], filter_inds[keep]
 
     result = Instances(image_shape)
-    result.pred_boxes = Boxes(boxes)
-    result.scores = scores
-    result.pred_classes = filter_inds[:, 1]
+    result.pred_boxes = Boxes(boxes_final)
+    result.scores = scores_final
+    result.pred_classes = filter_inds_final[:, 1]
     # Jamie
     # Save out logits
     if not class_logits == None:
-        #result.class_logits = class_logits[filter_inds[:,0]]
+        #result.class_logits = class_logits[filter_inds_final[:,0]]
         result.class_logits = class_logits[keep]
         result.prob_score = predicted_probs[keep]
-        #class_logits = class_logits[filter_inds[:,0]]
+        #class_logits = class_logits[filter_inds_final[:,0]]
         #result.class_logits = class_logits[keep]
-    return result, filter_inds[:, 0]
+    
+    if estimate_uncertainty:
+        # std from 1000 proposals
+        #stds = nms_calc_uncertainty(boxes_final.cpu().numpy(), scores_final.cpu().numpy(), boxes_one_class, scores_one_class, 0.75)
+        # std from bbox with class confidence score higher than threshold
+        stds = nms_calc_uncertainty(boxes_final.cpu().numpy(), scores_final.cpu().numpy(), boxes.cpu().numpy(), scores_filtered.cpu().numpy(), 0.9)
+        result.stds = torch.Tensor(stds).cuda()
+    
+    return result, filter_inds_final[:, 0]
 
 
 class FastRCNNOutputs(object):
@@ -399,7 +458,7 @@ class FastRCNNOutputs(object):
         probs = F.softmax(self.pred_class_logits, dim=-1)
         return probs.split(self.num_preds_per_image, dim=0)
 
-    def inference(self, score_thresh, nms_thresh, topk_per_image):
+    def inference(self, score_thresh, nms_thresh, topk_per_image, estimate_uncertainty=False):
         """
         Args:
             score_thresh (float): same as fast_rcnn_inference.
@@ -415,11 +474,11 @@ class FastRCNNOutputs(object):
         #pdb.set_trace()
         if self.enable_output_pred_logits:
             return fast_rcnn_inference(
-                boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=self.pred_class_logits
+                boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=self.pred_class_logits, estimate_uncertainty=estimate_uncertainty
             )
         else:
             return fast_rcnn_inference(
-                boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image
+                boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, estimate_uncertainty=estimate_uncertainty
             )
 
 
@@ -442,6 +501,7 @@ class FastRCNNOutputLayers(nn.Module):
         test_nms_thresh=0.5,
         test_topk_per_image=100,
         enable_output_logits=False,
+        estimate_uncertainty=False,
     ):
         """
         Args:
@@ -476,6 +536,7 @@ class FastRCNNOutputLayers(nn.Module):
         self.test_nms_thresh = test_nms_thresh
         self.test_topk_per_image = test_topk_per_image
         self.enable_output_logits = enable_output_logits
+        self.estimate_uncertainty = estimate_uncertainty
 
     @classmethod
     def from_config(cls, cfg, input_shape):
@@ -490,6 +551,7 @@ class FastRCNNOutputLayers(nn.Module):
             "test_nms_thresh"       : cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST,
             "test_topk_per_image"   : cfg.TEST.DETECTIONS_PER_IMAGE,
             "enable_output_logits"  : cfg.MODEL.ROI_BOX_HEAD.OUTPUT_LOGITS,
+            "estimate_uncertainty"  : cfg.MODEL.ROI_HEADS.ESTIMATE_UNCERTAINTY,
             # fmt: on
         }
 
@@ -521,14 +583,15 @@ class FastRCNNOutputLayers(nn.Module):
 
     def inference(self, predictions, proposals):
         scores, proposal_deltas = predictions
+        #import pdb; pdb.set_trace()
         if self.enable_output_logits:
             return FastRCNNOutputs(
                 self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta, output_pred_logits=self.enable_output_logits,
-            ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image)
+            ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image, self.estimate_uncertainty)
         else:
             return FastRCNNOutputs(
                 self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta,
-            ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image)
+            ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image, self.estimate_uncertainty)
 
     def predict_boxes_for_gt_classes(self, predictions, proposals):
         scores, proposal_deltas = predictions

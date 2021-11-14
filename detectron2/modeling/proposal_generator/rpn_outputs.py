@@ -147,7 +147,7 @@ def find_top_rpn_proposals(
         keep = boxes.nonempty(threshold=min_box_side_len)
         if keep.sum().item() != len(boxes):
             boxes, scores_per_img, lvl = boxes[keep], scores_per_img[keep], lvl[keep]
-        #pdb.set_trace()
+        #import pdb; pdb.set_trace()
         keep = batched_nms(boxes.tensor, scores_per_img, lvl, nms_thresh)
         # In Detectron1, there was different behavior during training vs. testing.
         # (https://github.com/facebookresearch/Detectron/issues/459)
@@ -162,7 +162,6 @@ def find_top_rpn_proposals(
         res.proposal_boxes = boxes[keep]
         res.objectness_logits = scores_per_img[keep]
         results.append(res)
-        #import pdb; pdb.set_trace()
     return results
 
 

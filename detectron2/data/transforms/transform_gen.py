@@ -442,6 +442,7 @@ def apply_transform_gens(transform_gens, img):
 
     tfms = []
     for g in transform_gens:
+        #import pdb; pdb.set_trace()
         tfm = g.get_transform(img)
         assert isinstance(
             tfm, Transform

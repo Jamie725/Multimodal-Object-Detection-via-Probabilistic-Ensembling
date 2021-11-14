@@ -274,7 +274,8 @@ _C.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
 # If True, augment proposals with ground-truth boxes before sampling proposals to
 # train ROI heads.
 _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT = True
-
+# Save out pre-nms bbox, score, class
+_C.MODEL.ROI_HEADS.ESTIMATE_UNCERTAINTY = False
 # ---------------------------------------------------------------------------- #
 # Box Head
 # ---------------------------------------------------------------------------- #
@@ -292,6 +293,7 @@ _C.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO = 0
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_BOX_HEAD.POOLER_TYPE = "ROIAlignV2"
 
+_C.MODEL.ROI_BOX_HEAD.DROP_OUT = False
 _C.MODEL.ROI_BOX_HEAD.NUM_FC = 0
 # Hidden layer dimension for FC layers in the RoI box head
 _C.MODEL.ROI_BOX_HEAD.FC_DIM = 1024

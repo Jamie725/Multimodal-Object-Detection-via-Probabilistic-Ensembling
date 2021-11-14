@@ -38,8 +38,13 @@ class FastRCNNConvFCHead(nn.Module):
         num_fc     = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
         fc_dim     = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
         norm       = cfg.MODEL.ROI_BOX_HEAD.NORM
+        dropout    = cfg.MODEL.ROI_BOX_HEAD.DROP_OUT
         # fmt: on
         assert num_conv + num_fc > 0
+        # Jamie
+        self.dropout_en = dropout
+        if self.dropout_en:
+            self.dropout = nn.Dropout(p=0.5)
 
         self._output_size = (input_shape.channels, input_shape.height, input_shape.width)
 
@@ -59,7 +64,7 @@ class FastRCNNConvFCHead(nn.Module):
             self._output_size = (conv_dim, self._output_size[1], self._output_size[2])
 
         self.fcs = []
-        for k in range(num_fc):
+        for k in range(num_fc):                        
             fc = Linear(np.prod(self._output_size), fc_dim)
             self.add_module("fc{}".format(k + 1), fc)
             self.fcs.append(fc)
@@ -73,11 +78,14 @@ class FastRCNNConvFCHead(nn.Module):
     def forward(self, x):
         for layer in self.conv_norm_relus:
             x = layer(x)
-        if len(self.fcs):
+        if len(self.fcs):            
             if x.dim() > 2:
                 x = torch.flatten(x, start_dim=1)
             for layer in self.fcs:
+                # Jamie                
                 x = F.relu(layer(x))
+                if self.dropout_en:
+                    x = self.dropout(x)
         return x
 
     @property

@@ -137,7 +137,9 @@ Category ids in annotations are not in [1, #categories]! We'll apply a mapping f
     for (img_dict, anno_dict_list) in imgs_anns:
         record = {}
         # Add by Jamie
-        img_name = img_dict["file_name"].split('/')[1]
+        #import pdb; pdb.set_trace()
+        #img_name = img_dict["file_name"].split('/')[1]
+        img_name = img_dict["file_name"]
         record["file_name"] = os.path.join(image_root, img_name)
         record["height"] = img_dict["height"]
         record["width"] = img_dict["width"]
@@ -180,8 +182,9 @@ Category ids in annotations are not in [1, #categories]! We'll apply a mapping f
                 obj["keypoints"] = keypts
 
             obj["bbox_mode"] = BoxMode.XYWH_ABS
-            if id_map:
+            if id_map:                
                 obj["category_id"] = id_map[obj["category_id"]]
+                
             objs.append(obj)
         record["annotations"] = objs
         dataset_dicts.append(record)

@@ -173,7 +173,7 @@ class DefaultPredictor:
 
         self.input_format = cfg.INPUT.FORMAT
         # Jamie
-        assert self.input_format in ["RGB", "BGR", "BGRT", "BGRTTT"], self.input_format
+        assert self.input_format in ["RGB", "BGR", "BGRT", "BGRTTT", 'UVV', 'UVM', 'BGRTUV', 'BGR_only', 'mid_RGB_out', 'BGRTTT_perturb'], self.input_format
         #assert self.input_format in ["RGB", "BGR"], self.input_format
 
     def __call__(self, original_image):

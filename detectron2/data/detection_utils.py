@@ -13,6 +13,7 @@ from fvcore.common.file_io import PathManager
 from PIL import Image, ImageOps
 import pdb
 import cv2
+from detectron2.utils.flow_utils import readFlow
 
 from detectron2.structures import (
     BitMasks,
@@ -61,18 +62,72 @@ def read_image(file_name, format=None):
             image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 4))
             image [:,:,0:3] = rgb_img
             image [:,:,3] = thermal_img[:,:,0]
-        elif format == 'BGRTTT':
+        elif format == 'BGR_only':            
             folder = file_name.split('thermal_8_bit/')[0]
             img_name = file_name.split('thermal_8_bit/')[1]
             img_name = img_name.split('.')[0] + '.jpg'
-            rgb_path = folder + 'RGB/' + img_name
-            #print(rgb_path)
+            rgb_path = folder + 'resized_RGB/' + img_name            
+            image = cv2.imread(rgb_path)            
+        elif format == 'BGRTTT': # middle fusion        
+            folder = file_name.split('thermal_8_bit/')[0]
+            img_name = file_name.split('thermal_8_bit/')[-1]
+            
+            img_name = img_name.split('.')[0] + '.jpg'
+            rgb_path = folder + 'RGB/' + img_name                        
             rgb_img = cv2.imread(rgb_path)
             thermal_img = cv2.imread(file_name)
 
             rgb_img = cv2.resize(rgb_img,(thermal_img.shape[1], thermal_img.shape[0]))
             image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 6))
             image [:,:,0:3] = rgb_img
+            image [:,:,3:6] = thermal_img
+        elif format == 'BGRTTT_perturb':
+            
+            folder = file_name.split('thermal_8_bit/')[0]
+            img_name = file_name.split('thermal_8_bit/')[1]
+            img_name = img_name.split('.')[0] + '.jpg'
+            rgb_path = folder + 'RGB/' + img_name                        
+            rgb_img = cv2.imread(rgb_path)
+
+            import os
+            number = int(file_name.split('video_')[-1].split('.')[0])
+            #number = int(file_name.split('FLIR')[-1].split('_')[1].split('.')[0])
+            number -= 1
+            number_str = '{:05d}'.format(number)
+            new_file_name = file_name.split('thermal')[0] + 'thermal_8_bit/FLIR_video_'+number_str+'.jpeg'            
+            if os.path.exists(new_file_name):
+                thermal_img = cv2.imread(new_file_name)
+                print(new_file_name, '  RGB: ', rgb_path)
+            else:
+                thermal_img = cv2.imread(file_name)
+                print(file_name, '  RGB: ', rgb_path)            
+            rgb_img = cv2.resize(rgb_img,(thermal_img.shape[1], thermal_img.shape[0]))
+            """
+            # Random resize
+            import random
+            ratio = random.randrange(100,121) / 100
+            width_new = int(640*ratio+0.5)
+            height_new = int(512*ratio+0.5)            
+            rgb_img = cv2.resize(rgb_img, (width_new, height_new))
+            
+            # Random crop
+            [height, width, _] = thermal_img.shape
+            diff_w = width_new - width
+            diff_h = height_new - height
+            if diff_w > 0: shift_x = random.randrange(0, diff_w)
+            else: shift_x = 0
+            if diff_h > 0: shift_y = random.randrange(0, diff_h)
+            else: shift_y = 0            
+            
+            rgb_img = rgb_img[shift_y:shift_y+height, shift_x:shift_x+width, :]
+            """
+            #import pdb; pdb.set_trace()
+            image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 6))
+            image [:,:,0:3] = rgb_img
+            image [:,:,3:6] = thermal_img
+        elif format == "mid_RGB_out":
+            thermal_img = cv2.imread(file_name)
+            image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 6))
             image [:,:,3:6] = thermal_img
         elif format =='T_TCONV':
             #import pdb;pdb.set_trace()
@@ -86,7 +141,6 @@ def read_image(file_name, format=None):
             image [:,:,0] = t_conv_img[:,:,0]
             image [:,:,1] = thermal_img[:,:,0]
         elif format == 'T_TCONV_MASK':
- 
             folder = file_name.split('thermal_convert/')[0]
             img_name = file_name.split('thermal_convert/')[1]
             #img_name = img_name.split('.')[0] + '.jpeg'
@@ -99,7 +153,83 @@ def read_image(file_name, format=None):
             image [:,:,0] = t_conv_img[:,:,0]
             image [:,:,1] = thermal_img[:,:,0]
             image [:,:,2] = mask_img[:,:,0]
+        elif format == 'UVV': # UV in first two channel, 0 in third channel     
+            if 'train' in file_name:
+                folder = '../../../Datasets/KAIST/train/KAIST_flow_train_sanitized/'
+            else:
+                folder = '../../../Datasets/KAIST/test/KAIST_flow_test_sanitized/'
+            
+            fname = file_name.split('/')[-1].split('.')[0] + '.flo'
+            fpath = folder + fname
+            flow = readFlow(fpath)
+            image = np.zeros((flow.shape[0], flow.shape[1], 3))
+            image[:,:,0] = flow[:,:,0]
+            image[:,:,1] = flow[:,:,1]
+            image[:,:,2] = flow[:,:,1]
+            image *= 4.0
+            #image += 128.0
+            image[image>255] = 255.0
+            #pdb.set_trace()
+            """
+            image = np.abs(image) / 40.0 * 255.0
+            image[image>255] = 255.0
+            """
+        elif format == 'UVM': # UV + magnitude(uv)
+            if 'train' in file_name:
+                folder = '../../../Datasets/KAIST/train/KAIST_flow_train_sanitized/'
+            else:
+                folder = '../../../Datasets/KAIST/test/KAIST_flow_test_sanitized/'
+            
+            fname = file_name.split('/')[-1].split('.')[0] + '.flo'
+            fpath = folder + fname
+            flow = readFlow(fpath)
+            flow_s = flow * flow
+            magnitude = np.sqrt(flow_s[:,:,0] + flow_s[:,:,1])
+
+            image = np.zeros((flow.shape[0], flow.shape[1], 3))
+            image[:,:,0] = flow[:,:,0]
+            image[:,:,1] = flow[:,:,1]
+            image[:,:,2] = magnitude
+            image *= 4.0
+            #image += 128.0
+            image[image>255] = 255.0
+            """
+            image = np.abs(image) / 40.0 * 255.0
+            image[image>255] = 255.0
+            """
+        elif format == 'BGRTUV':
+            if 'train' in file_name:
+                flow_folder = '../../../Datasets/KAIST/train/KAIST_flow_train_sanitized/'
+                img_folder = '../../../Datasets/KAIST/train/'
+            else:
+                flow_folder = '../../../Datasets/KAIST/test/KAIST_flow_test_sanitized/'
+                img_folder = '../../../Datasets/KAIST/test/'
+            
+            fname = file_name.split('/')[-1].split('.')[0] + '.flo'
+            fpath = flow_folder + fname
+            flow = readFlow(fpath)
+            
+            image = np.zeros((flow.shape[0], flow.shape[1], 6))
+            image[:,:,4] = flow[:,:,0]
+            image[:,:,5] = flow[:,:,1]    
+            image *= 3
+            image += 128.0
+            image[image>255] = 255.0
+
+            set_name = file_name.split('/')[-1].split('_')[0]
+            V_name = file_name.split('/')[-1].split('_')[1]
+            img_name = file_name.split('/')[-1].split('_')[2]
+
+            fname_bgr = img_folder + set_name + '/' + V_name + '/visible/' + img_name
+            fname_thr = img_folder + set_name + '/' + V_name + '/lwir/' + img_name
+            bgr = cv2.imread(fname_bgr)
+            thr = cv2.imread(fname_thr)
+
+            image[:,:,0:3] = bgr
+            image[:,:,3] = thr[:,:,0]
+            
         else:
+            #pdb.set_trace()
             image = Image.open(f)
 
             # capture and ignore this bug: https://github.com/python-pillow/Pillow/issues/3973

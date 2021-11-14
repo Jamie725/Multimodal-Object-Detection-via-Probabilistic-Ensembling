@@ -488,7 +488,7 @@ def build_resnet_backbone(cfg, input_shape):
     freeze_at = cfg.MODEL.BACKBONE.FREEZE_AT
 
     if freeze_at >= 1:
-        print('Require gradient = False for the first several layers of ResNet')
+        print('Require gradient = False for the first ', freeze_at,' layers of ResNet')        
         for p in stem.parameters():
             p.requires_grad = False
         stem = FrozenBatchNorm2d.convert_frozen_batchnorm(stem)

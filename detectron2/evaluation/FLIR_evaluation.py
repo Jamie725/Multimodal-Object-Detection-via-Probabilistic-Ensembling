@@ -143,7 +143,7 @@ class FLIREvaluator(DatasetEvaluator):
         self._results = OrderedDict()
         if "proposals" in self._predictions[0]:
             self._eval_box_proposals()
-        if "instances" in self._predictions[0]:
+        if "instances" in self._predictions[0]:            
             if out_eval_path:
                 self._eval_predictions(set(self._tasks), out_eval_path=out_eval_path)
             else:
@@ -538,9 +538,8 @@ def _evaluate_predictions_on_coco(coco_gt, coco_results, iou_type, kpt_oks_sigma
     # R: Recall, 0:100, size 101
     # K: Class ID
     # A: Area size, (all, small, medium, large), size 4
-    # M: maxDets, (1, 10, 100), size 3
-    
-    if out_eval_path:
+    # M: maxDets, (1, 10, 100), size 3 
+    if out_eval_path:        
         print("---------- Saving evaluation results! ------")
         with open(out_eval_path,'wb') as f: 
             pickle.dump(coco_eval, f)
