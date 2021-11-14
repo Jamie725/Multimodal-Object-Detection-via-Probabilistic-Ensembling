@@ -8,9 +8,9 @@ import json
 from os.path import isfile, join
 import cv2
 
-data_set = 'train'
+data_set = 'video'
 in_anno_file = '../../../Datasets/FLIR/'+data_set+'/thermal_annotations.json'#thermal_annotations_4_channel_no_dogs.json'
-out_anno_file = '../../../Datasets/FLIR/'+data_set+'/thermal_RGBT_pairs_3_class.json'
+out_anno_file = '../../../Datasets/FLIR/'+data_set+'/RGBT_pair_3_class_video_set.json'
 img_folder = '../../../Datasets/FLIR/'+data_set+'/RGB'
 
 #in_anno_file = out_anno_file
@@ -20,7 +20,6 @@ categories = data['categories']
 licenses = data['licenses']
 annos = data['annotations']
 images = data['images']
-pdb.set_trace()
 annotations = []
 # Remove dog categories
 for i in range(len(annos)):
@@ -35,7 +34,8 @@ file_names = [f for f in os.listdir(img_folder) if isfile(join(img_folder, f))]
 rgb_img_dict = {}
 
 for i in range(len(file_names)):
-    img_id = int(file_names[i].split('FLIR_')[1].split('.')[0])
+    img_id = int(file_names[i].split('video_')[-1].split('.')[0])
+    #img_id = int(file_names[i].split('FLIR_')[1].split('.')[0])
     rgb_img_dict[img_id] = file_names[i]
 
 # Create new image list and annotation lists
@@ -45,7 +45,8 @@ anno_cnt = 0
 for i in range(len(images)):
     img_name = images[i]['file_name']
     #img_name = contents[i]
-    img_file_num = int(img_name.split('FLIR_')[1].split('.')[0])
+    img_file_num = int(img_name.split('video_')[-1].split('.')[0])
+    #img_file_num = int(img_name.split('FLIR_')[1].split('.')[0])
     
     if img_file_num in rgb_img_dict.keys():
         img_info = images[i].copy()

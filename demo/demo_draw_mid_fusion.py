@@ -41,7 +41,7 @@ cfg.MODEL.WEIGHTS = "good_model/3_class/mid_fusion/out_model_iter_100.pth"
 predictor = DefaultPredictor(cfg)
 for i in range(len(files_names)):
     # ------------ Prepare for inputs ------------- #
-    files_names[i] = 'FLIR_09062.jpg'
+    #files_names[i] = 'FLIR_09062.jpg'
     path_t = '../../../Datasets/'+ dataset +'/'+train_or_val+'/thermal_8_bit/'
     file_img = path_t + files_names[i].split(".")[0] + '.jpeg'
     thermal_img = cv2.imread(file_img)

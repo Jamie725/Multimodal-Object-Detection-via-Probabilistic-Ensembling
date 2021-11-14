@@ -92,7 +92,7 @@ def draw_pr(eval_file_name, out_folder):
             print('Average Precision (AP) @[ IoU=0.50:0.95| area= {0}\t| maxDets=100 ] = {1}' .format(size_name[sid], mAP_all))
 
         for cid in range(len(class_id)):
-            out_fig_name = out_folder + '/PR_' + class_name[cid] + '_IoU=0_5_small_medium_large.png'
+            out_fig_name = out_folder + '/PR_' + class_name[cid] + '_IoU=0_5_small_medium_large_temp.png'
             title_name = class_name[cid] + ' Precision Recall'
         
             pr_small = coco_eval.eval['precision'][0,:,class_id[cid],1,2]
@@ -120,5 +120,5 @@ if __name__ == '__main__':
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
     #draw_pr('out/mAP/concate_2000_val.out', out_folder)
-    #draw_pr('out/mAP/FLIR_early_fusion_result.out', out_folder)
-    draw_pr('out/mAP/FLIR_Baysian_Day.out', out_folder)
+    draw_pr('out/mAP/FLIR_Baysian_val_probEn_IoU_90.out', out_folder)
+    #raw_pr('out/mAP/FLIR_thermal_only_3_class.out', out_folder)

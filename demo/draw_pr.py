@@ -61,8 +61,8 @@ def draw_pr_curve(anno_file_name, det_result_name, out_pr_name, thr):
     plt.savefig(out_pr_name)
 
 if __name__ == '__main__':
-    #anno_file_name = '../../../Datasets/FLIR/val/thermal_annotations_new.json'
-    anno_file_name = '../../../Datasets/FLIR/train/thermal_annotations_small.json'
+    anno_file_name = '../../../Datasets/FLIR/val/thermal_annotations_new.json'
+    #anno_file_name = '../../../Datasets/FLIR/train/thermal_annotations_small.json'
     det_result_name = 'output_val/coco_instances_results.json'
     #det_result_name = 'output_val/coco_instances_val_results.json'
     out_pr_name = 'pr.png'

@@ -90,6 +90,7 @@ def bayesian_fusion_multiclass(match_score_vec, pred_class):
     sum_logits = np.sum(log_scores, axis=0)
     exp_logits = np.exp(sum_logits)
     out_score = exp_logits[pred_class] / np.sum(exp_logits)
+    pdb.set_trace()
     return out_score
 
 def prior(num_bg=1000):
@@ -169,7 +170,7 @@ def prepare_data(info1, info2, info3=''):
     out_bbox = np.concatenate((bbox1, bbox2), axis=0)
     out_score = np.concatenate((score1, score2), axis=0)
     out_class = np.concatenate((class1, class2), axis=0)
-
+    
     if info3:
         bbox3 = np.array(info3['bbox'])
         score3 = np.array(info3['score'])
@@ -227,19 +228,19 @@ def nms_bayesian(dets, scores, classes, probs, thresh, method):
         original_prob = probs[i]
         original_score = scores[i].tolist()
         original_bbox = dets[i][:4]
+        
         if len(match_score)>0:
             match_score += [original_score]
             match_prob += [original_prob]
             if method == 'avg_score':
                 final_score = np.mean(np.asarray(match_score))
-                #pdb.set_trace()
                 final_bbox = avg_bbox_fusion(match_bbox)
-                #pdb.set_trace()
             elif method == 'bayesian':
                 final_score = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])
                 final_bbox = avg_bbox_fusion(match_bbox)
             elif method == 'baysian_avg_bbox':
-                final_score = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])                
+                #final_score = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])                
+                final_score = bayesian_fusion(np.asarray(match_score))                
                 match_bbox += [original_bbox]
                 final_bbox = avg_bbox_fusion(match_bbox)
             elif method == 'bayesian_wt_score_box':
@@ -369,16 +370,13 @@ def fusion(method, info_1, info_2, info_3=''):
         #in_boxes, in_scores, in_class = prepare_data(info_1, info_2, info3=info_3)
         in_boxes, in_scores, in_class, in_logits, in_prob = prepare_data(info_1, info_2, info3=info_3)
         #pdb.set_trace()
-        """
-        # Here is for paper visualization presentation
         # Cutting off scores under threshold
-        score_thr = 0.87
+        score_thr = 0.5
         keep_ids = np.where(in_scores > score_thr)
         in_boxes = in_boxes[keep_ids]
         in_scores = in_scores[keep_ids]
         in_class = in_class[keep_ids]
         in_prob = in_prob[keep_ids]
-        """
         #keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, threshold, method)
         keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, in_prob, threshold, method)
     elif method == 'avgLogits_softmax' or method == 'sumLogits_softmax':
@@ -404,9 +402,9 @@ def draw_box(img, bbox, pred_class, color):
         min_y = max(int(bbox[i][1] - 5), 0)        
         img = cv2.putText(img, class_name[int(pred_class[i])], (min_x, min_y), font, fontScale, color2, 2, cv2.LINE_AA)
     return img
-def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=''):
+def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, out_file_name, det_3=''):
     evaluator.reset()
-    img_folder = '../../../Datasets/FLIR/val/thermal_8_bit/'#'../../../Datasets/FLIR/video/thermal_8_bit/'#
+    img_folder = '../../../Datasets/KAIST/test/'#'../../../Datasets/FLIR/video/thermal_8_bit/'#'../../../Datasets/FLIR/val/thermal_8_bit/'
     
     num_img = len(det_2['image'])
     count_1=0
@@ -415,136 +413,114 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3='
 
     print('Method: ', method)
 
-    for i in range(num_img):
-        info_1 = {}
-        info_1['img_name'] = det_1['image'][i]
-        info_1['bbox'] = det_1['boxes'][i]
-        info_1['score'] = det_1['scores'][i]
-        info_1['class'] = det_1['classes'][i]
-        info_1['class_logits'] = det_1['class_logits'][i]
-        if 'probs' in det_1.keys():
-            info_1['prob'] = det_1['probs'][i]
+    with open(out_file_name, mode='w') as f:
+        for i in range(num_img):
+            info_1 = {}
+            info_1['img_name'] = det_1['image'][i]
+            info_1['bbox'] = det_1['boxes'][i]
+            info_1['score'] = det_1['scores'][i]
+            info_1['class'] = det_1['classes'][i]
+            info_1['class_logits'] = det_1['class_logits'][i]
+            if 'probs' in det_1.keys():
+                info_1['prob'] = det_1['probs'][i]
 
-        info_2 = {}
-        info_2['img_name'] = det_2['image'][i].split('.')[0] + '.jpeg'
-        info_2['bbox'] = det_2['boxes'][i]
-        info_2['score'] = det_2['scores'][i]
-        info_2['class'] = det_2['classes'][i]
-        info_2['class_logits'] = det_2['class_logits'][i]
-        if 'probs' in det_2.keys():
-            info_2['prob'] = det_2['probs'][i]
-        
-        if len(info_1['bbox']) > 0:
-            num_1 = 1
-        else:
-            num_1 = 0
-        if len(info_2['bbox']) > 0:
-            num_2 = 1
-        else:
-            num_2 = 0
-        
-        num_detections = num_1 + num_2
-
-        if det_3:
-            info_3 = {}
-            info_3['img_name'] = det_3['image'][i].split('.')[0] + '.jpeg'
-            info_3['bbox'] = det_3['boxes'][i]
-            info_3['score'] = det_3['scores'][i]
-            info_3['class'] = det_3['classes'][i]
-            info_3['class_logits'] = det_3['class_logits'][i]
-            if 'probs' in det_3.keys():
-                info_3['prob'] = det_3['probs'][i]
-            if len(info_3['bbox']) > 0:
-                num_3 = 1
-            else:
-                num_3 = 0
-
-            num_detections += num_3
-        
-        # No detections
-        if num_detections == 0:
-            continue
-        # Only 1 model detection
-        elif num_detections == 1:            
+            info_2 = {}
+            info_2['img_name'] = det_2['image'][i].split('.')[0] + '.jpeg'
+            info_2['bbox'] = det_2['boxes'][i]
+            info_2['score'] = det_2['scores'][i]
+            info_2['class'] = det_2['classes'][i]
+            info_2['class_logits'] = det_2['class_logits'][i]
+            
+            if 'probs' in det_2.keys():
+                info_2['prob'] = det_2['probs'][i]
+            
             if len(info_1['bbox']) > 0:
-                out_boxes = np.array(info_1['bbox'])
-                out_class = torch.Tensor(info_1['class'])
-                out_scores = torch.Tensor(info_1['score'])
-            elif len(info_2['bbox']) > 0:
-                out_boxes = np.array(info_2['bbox'])
-                out_class = torch.Tensor(info_2['class'])
-                out_scores = torch.Tensor(info_2['score'])
+                num_1 = 1
             else:
-                if det_3:
-                    out_boxes = np.array(info_3['bbox'])
-                    out_class = torch.Tensor(info_3['class'])
-                    out_scores = torch.Tensor(info_3['score'])
-        # Only two models with detections
-        elif num_detections == 2:
-            if not det_3:
-                out_boxes, out_scores, out_class = fusion(method, info_1, info_2)
-            else:    
-                if len(info_1['bbox']) == 0:
-                    out_boxes, out_scores, out_class = fusion(method, info_2, info_3)
-                elif len(info_2['bbox']) == 0:
-                    out_boxes, out_scores, out_class = fusion(method, info_1, info_3)
+                num_1 = 0
+            if len(info_2['bbox']) > 0:
+                num_2 = 1
+            else:
+                num_2 = 0
+            
+            num_detections = num_1 + num_2
+            
+            if det_3:
+                info_3 = {}
+                info_3['img_name'] = det_3['image'][i].split('.')[0] + '.jpeg'
+                info_3['bbox'] = det_3['boxes'][i]
+                info_3['score'] = det_3['scores'][i]
+                info_3['class'] = det_3['classes'][i]
+                info_3['class_logits'] = det_3['class_logits'][i]
+                if 'probs' in det_3.keys():
+                    info_3['prob'] = det_3['probs'][i]
+                if len(info_3['bbox']) > 0:
+                    num_3 = 1
                 else:
+                    num_3 = 0
+
+                num_detections += num_3
+            
+            # No detections
+            if num_detections == 0:
+                continue
+            # Only 1 model detection
+            elif num_detections == 1:            
+                if len(info_1['bbox']) > 0:
+                    out_boxes = np.array(info_1['bbox'])
+                    out_class = torch.Tensor(info_1['class'])
+                    out_scores = torch.Tensor(info_1['score'])
+                elif len(info_2['bbox']) > 0:
+                    out_boxes = np.array(info_2['bbox'])
+                    out_class = torch.Tensor(info_2['class'])
+                    out_scores = torch.Tensor(info_2['score'])
+                else:
+                    if det_3:
+                        out_boxes = np.array(info_3['bbox'])
+                        out_class = torch.Tensor(info_3['class'])
+                        out_scores = torch.Tensor(info_3['score'])
+            # Only two models with detections
+            elif num_detections == 2:
+                if not det_3:
                     out_boxes, out_scores, out_class = fusion(method, info_1, info_2)
-        # All models detected things
-        else:
-            out_boxes, out_scores, out_class = fusion(method, info_1, info_2, info_3=info_3)
-            
-        file_name = img_folder + info_1['img_name'].split('.')[0] + '.jpeg'
-        img = cv2.imread(file_name)        
-        H, W, _ = img.shape
-
-        # Handle inputs
-        inputs = []
-        input_info = {}
-        input_info['file_name'] = file_name
-        input_info['height'] = H
-        input_info['width'] = W
-        input_info['image_id'] = det_2['image_id'][i]
-        input_info['image'] = torch.Tensor(img)
-        inputs.append(input_info)
-        
-        # Handle outputs
-        outputs = []
-        out_info = {}
-        proposals = Instances([H, W])
-        proposals.pred_boxes = Boxes(out_boxes)
-        proposals.scores = out_scores
-        proposals.pred_classes = out_class
-        out_info['instances'] = proposals
-        outputs.append(out_info)
-        evaluator.process(inputs, outputs)
-        """
-        img = draw_box(img, out_boxes, out_class, (0,255,0))
-        out_img_name = 'iccv/bayesian_0_8_text/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_baysian.jpg'
-        
-        cv2.imwrite(out_img_name, img)
-        """
-        """
-        if '00184' in file_name:
-            out_img_name = 'iccv/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_bayesian_avg_bbox.jpg'
-            
-            cv2.imwrite(out_img_name, img)
-            pdb.set_trace()
-        """
-        
+                else:    
+                    if len(info_1['bbox']) == 0:
+                        out_boxes, out_scores, out_class = fusion(method, info_2, info_3)
+                    elif len(info_2['bbox']) == 0:
+                        out_boxes, out_scores, out_class = fusion(method, info_1, info_3)
+                    else:
+                        out_boxes, out_scores, out_class = fusion(method, info_1, info_2)
+            # All models detected things
+            else:
+                out_boxes, out_scores, out_class = fusion(method, info_1, info_2, info_3=info_3)
                 
-        
-    results = evaluator.evaluate(out_eval_path='FLIR_pooling_.out')
-    
-    if results is None:
-        results = {}
-
-    return results
+            file_name = img_folder + info_1['img_name'].split('.')[0] + '.jpg'
+            print(file_name)
+            
+            for j in range(len(out_scores)):
+                score = out_scores.numpy()[j]*100
+                bbox = out_boxes[j]                
+                bbox[2] -= bbox[0] 
+                bbox[3] -= bbox[1]
+                
+                f.write(str(i+1)+',')
+                f.write(','.join(str(c) for c in bbox))
+                #pdb.set_trace()
+                f.write(','+str(score))
+                f.write('\n')
+            """
+            if '00184' in file_name:
+                out_img_name = 'iccv/' + file_name.split('thermal_8_bit/')[1].split('.')[0]+'_bayesian_avg_bbox.jpg'
+                
+                cv2.imwrite(out_img_name, img)
+                pdb.set_trace()
+            """                
+    f.close()
 
 
 if __name__ == '__main__':
-    data_set = 'val'
-    data_folder = 'out/box_predictions/3_class/'
+    data_set = 'video'#'val'
+    data_folder = 'out/box_predictions/KAIST/'
     dataset = 'FLIR'
     IOU = 50                 
     time = 'all'
@@ -561,42 +537,24 @@ if __name__ == '__main__':
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
-    else:
-        # more classes
-        #det_file_1 = data_folder + 'val_mid_fusion_predictions_IOU50_with_logits.json'
-        #det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_with_logits.json'
-        #det_file_3 = data_folder + 'val_thermal_only_predictions_IOU50_with_logits.json'
-        
-        """
-        3 class with multiclass probability score
-        """
-        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
-        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
-        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+    else:        
+        det_file_1 = data_folder + 'RGB/test_RGB_predictions.json'
+        det_file_2 = data_folder + 'thermal/test_thermal_predictions.json'
+        det_file_3 = data_folder + 'flow/test_flow_predictions.json'
 
-        #det_file_1 = data_folder + 'video_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
-        #det_file_2 = data_folder + 'video_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
-        #det_file_3 = data_folder + 'video_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
-        val_file_name = 'thermal_RGBT_pairs_3_class.json'
-        #val_file_name = 'RGB_annotations_4_channel_no_dogs.json'#'thermal_RGBT_pairs_3_class.json'#'thermal_annotations.json'#'thermal_RGBT_pairs_3_class.json'#'thermal_annotations_4_channel_no_dogs.json'
+        val_file_name = 'KAIST_test_thermal_annotation.json'#'thermal_RGBT_pairs_3_class.json'#'thermal_annotations_4_channel_no_dogs.json'
     
     print('detection file 1:', det_file_1)
     print('detection file 2:', det_file_2)
     print('detection file 3:', det_file_3)
     
-    path_1 = '../../../Datasets/FLIR/' + data_set + '/resized_RGB/'
-    path_2 = '../../../Datasets/FLIR/' + data_set + '/thermal_8_bit/'
-    out_folder = 'out/box_comparison/'
-    #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs.json'
+    out_folder = 'out/box_predictions/KAIST/bayesian/'
+    val_json_path = '../../../Datasets/KAIST/test/' + val_file_name
+    val_folder = '../../../Datasets/FLIR/video/thermal_8_bit'
     
-    val_json_path = '../../../Datasets/'+dataset+'/val/' + val_file_name
-    val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
-    #val_json_path = '../../../Datasets/'+dataset+'/video/' + val_file_name
-    #val_folder = '../../../Datasets/FLIR/video/thermal_8_bit'
-
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
-
+    
     # Register dataset
     dataset = 'FLIR_val'
     register_coco_instances(dataset, {}, val_json_path, val_folder)
@@ -605,21 +563,27 @@ if __name__ == '__main__':
 
     # Create config
     cfg = get_cfg()
+    cfg.DATALOADER.NUM_WORKERS = 2
     cfg.OUTPUT_DIR = out_folder
+    cfg.merge_from_file("./configs/COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
+    cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
+    #cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "good_model/out_model_iter_32000.pth")
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80
     cfg.DATASETS.TEST = (dataset, )
     cfg.INPUT.FORMAT = 'BGR'
     cfg.INPUT.NUM_IN_CHANNELS = 3
     cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
     cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
- 
+    
     # Read detection results
     det_1 = json.load(open(det_file_1, 'r'))
     det_2 = json.load(open(det_file_2, 'r'))
     det_3 = json.load(open(det_file_3, 'r'))
-    pdb.set_trace()
+    
     evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_video_avg_box_all.out')
-    method = 'bayesian_wt_score_box'#'bayesian_prior_wt_score_box'#'bayesian_wt_score_box'#'sumLogits_softmax'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'bayesian'#'nms'
-    #result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=det_3)
-    result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method)
+    method = 'baysian_avg_bbox'#'bayesian_prior_wt_score_box'#'bayesian_wt_score_box'#'sumLogits_softmax'#'avgLogits_softmax'#'baysian_avg_bbox'#'avg_score'#'pooling' #'bayesian'#'nms'
+    out_file_name = 'out/box_predictions/KAIST/KAIST_RGB_T_UV_bayesian.txt'
+    #apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, out_file_name, det_3=det_3)
+    apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, out_file_name)
+    #result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method)
