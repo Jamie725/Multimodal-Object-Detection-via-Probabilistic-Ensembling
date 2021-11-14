@@ -31,12 +31,12 @@ def test_during_train(cfg, dataset_name, save_eval_name, save_folder):
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(trainer.model, val_loader, evaluator_FLIR)
 
-def test(cfg, dataset_name):
+def test(cfg, dataset_name, file_name='FLIR_early_fusion_result.out'):
     
     cfg.DATASETS.TEST = (dataset_name, )
     predictor = DefaultPredictor(cfg)
     #evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
-    out_name = out_folder+'FLIR_early_fusion_result.out'
+    out_name = out_folder+file_name
     
     evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path=out_name)
     #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
@@ -55,10 +55,9 @@ train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
 train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs_3_class.json'
 #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations.json'
 # Validation path
-val_path = '../../../Datasets/'+ dataset +'/val/thermal_8_bit/'
-val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
+val_folder = '../../../Datasets/FLIR/val/'
 #val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4class.json'
-val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4_channel_no_dogs_3_class.json'
+val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4_channel_no_dogs_3_class.json'#thermal_RGBT_pairs_3_class.json'#thermal_annotations_4_channel_no_dogs.json'#thermal_annotations_4_channel_no_dogs_3_class.json'
 print(train_json_path)
 
 # Register dataset
@@ -104,7 +103,7 @@ cfg.INPUT.NUM_IN_CHANNELS = 4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.MODEL.WEIGHTS = 'good_model/3_class/early_fusion/out_model_iter_100.pth'
+cfg.MODEL.WEIGHTS = 'output_early_fusion_probablistic/out_model_final.pth'#'good_model/3_class/early_fusion/out_model_iter_100.pth'
 #cfg.MODEL.WEIGHTS = "good_model/3_class/early_fusion/out_model_iter_1000.pth"
 #cfg.MODEL.WEIGHTS = 'output_early_fusion_3_class/out_model_iter_8000.pth'
 test(cfg, dataset_test)
