@@ -47,20 +47,20 @@ def test(cfg, dataset_name):
 
 #Set GPU
 torch.cuda.set_device(0)
-#GPU: PID 1020
+#GPU: PID 4854
 
 
 # get path
 dataset = 'FLIR'
 # Train path
 train_path = '../../../Datasets/'+ dataset +'/train/thermal_8_bit/'
-train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
+train_folder = '../../../Datasets/FLIR/train/'
 #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4class.json'
 train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs_3_class.json'
 #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations.json'
 # Validation path
 val_path = '../../../Datasets/'+ dataset +'/val/thermal_8_bit/'
-val_folder = '../../../Datasets/FLIR/val/thermal_8_bit'
+val_folder = '../../../Datasets/FLIR/val/'
 #val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4class.json'
 val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4_channel_no_dogs_3_class.json'
 print(train_json_path)
@@ -81,7 +81,7 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_mid_fusion_3_class_1'
+out_folder = 'output_mid_fusion_gNNL'
 out_model_path = os.path.join(out_folder, 'out_model_final.pth')
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)

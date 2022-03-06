@@ -106,7 +106,7 @@ cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for th
 ###### Performance tuning ########
 cfg.DATALOADER.NUM_WORKERS = 0
 cfg.SOLVER.IMS_PER_BATCH = 4
-cfg.SOLVER.BASE_LR = 0.005  # pick a good LR
+cfg.SOLVER.BASE_LR = 0.0001  # pick a good LR
 cfg.SOLVER.MAX_ITER = 50000
 #-------------------------------------------- Get pretrained RGB parameters -------------------------------------#
 ###### Parameter for 3 channel input ####
@@ -146,7 +146,7 @@ for idx in range(num_loops):
     
     trainer.train()
     torch.save(trainer.model.state_dict(), out_model_path)
-    #pdb.set_trace()
+    
     cfg.MODEL.WEIGHTS = out_model_path
     # Evaluation
     train_results = test(cfg, dataset_train)

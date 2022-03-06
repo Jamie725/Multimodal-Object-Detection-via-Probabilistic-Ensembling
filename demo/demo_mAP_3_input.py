@@ -59,13 +59,6 @@ val_folder = '../../../Datasets/FLIR/val/'
 val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_3_channel_no_dogs.json'#val/thermal_RGBT_pairs_3_class.json'#thermal_RGBT_pairs_3_class.json'#thermal_annotations_3_channel_no_dogs.json'#thermal_annotations_4_channel_no_dogs.json'
 #thermal_annotations_4_channel_no_dogs_Day.json
 
-"""
-# Register dataset
-dataset = 'FLIR_train'
-register_coco_instances(dataset, {}, train_json_path, train_folder)
-FLIR_metadata = MetadataCatalog.get(dataset)
-dataset_dicts = DatasetCatalog.get(dataset)
-"""
 model = 'faster_rcnn_R_101_FPN_3x'
 
 # Create config
@@ -75,7 +68,7 @@ cfg.OUTPUT_DIR = out_folder
 cfg.merge_from_file("./configs/COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml")
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.MODEL.WEIGHTS = 'output_thermal_only_prob/out_model_iter_4000.pth'#"good_model/3_class/thermal_only/out_model_iter_15000.pth"
+cfg.MODEL.WEIGHTS = '0304/output_thermal_only_gNLL/out_model_thermal_only_best.pth'#"good_model/3_class/thermal_only/out_model_iter_15000.pth"
 
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 cfg.DATASETS.TEST = (dataset, )
@@ -85,8 +78,6 @@ cfg.INPUT.FORMAT = 'BGR'
 cfg.INPUT.NUM_IN_CHANNELS = 3
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
-#cfg.MODEL.ROI_HEADS.NUM_CLASSES = 17
-#cfg.MODEL.ROI_HEADS.ESTIMATE_UNCERTAINTY = True
 #######################
 
 # Test on validation set

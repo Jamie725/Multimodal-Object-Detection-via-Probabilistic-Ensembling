@@ -58,7 +58,7 @@ train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_cha
 # Validation path
 val_folder = '../../../Datasets/FLIR/val/'#video/'
 #val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4class.json'
-val_json_path = '../../../Datasets/'+dataset+'/val/thermal_RGBT_pairs_3_class.json'#video/RGBT_pair_3_class_video_set.json'#val/thermal_RGBT_pairs_3_class.json'#thermal_RGBT_pairs_3_class.json'#thermal_annotations_4_channel_no_dogs.json'
+val_json_path = '../../../Datasets/'+dataset+'/val/thermal_annotations_4_channel_no_dogs_3_class.json'#thermal_RGBT_pairs_3_class.json'#video/RGBT_pair_3_class_video_set.json'#val/thermal_RGBT_pairs_3_class.json'#thermal_RGBT_pairs_3_class.json'#thermal_annotations_4_channel_no_dogs.json'
 print(train_json_path)
 
 # Register dataset
@@ -107,7 +107,7 @@ cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
-cfg.MODEL.WEIGHTS = 'good_model/3_class/mid_fusion/out_model_iter_100.pth'#"output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
+cfg.MODEL.WEIGHTS = '0303/output_mid_fusion_gnll/out_model_middle_fusion_best.pth'#'good_model/3_class/mid_fusion/out_model_mid_fusion_gnll.pth'#'good_model/3_class/mid_fusion/out_model_iter_100.pth'#"output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
 
 #test_during_train(trainer, dataset_train)
 #test_during_train(cfg, trainer, dataset_test)

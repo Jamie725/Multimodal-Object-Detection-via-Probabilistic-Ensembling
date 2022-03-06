@@ -120,5 +120,5 @@ if __name__ == '__main__':
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
     #draw_pr('out/mAP/concate_2000_val.out', out_folder)
-    draw_pr('out/mAP/FLIR_Baysian_val_probEn_IoU_90.out', out_folder)
+    draw_pr('out/mAP/FLIR_Baysian_val_wt_box_fusion.out', out_folder)
     #raw_pr('out/mAP/FLIR_thermal_only_3_class.out', out_folder)

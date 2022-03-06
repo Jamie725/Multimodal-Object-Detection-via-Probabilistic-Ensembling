@@ -50,7 +50,7 @@ torch.cuda.set_device(1)
 dataset = 'FLIR'
 # Train path
 train_path = '../../../Datasets/'+ dataset +'/train/thermal_8_bit/'
-train_folder = '../../../Datasets/FLIR/train/thermal_8_bit'
+train_folder = '../../../Datasets/FLIR/train/'
 #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4class.json'
 train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations_4_channel_no_dogs_3_class.json'
 #train_json_path = '../../../Datasets/'+dataset+'/train/thermal_annotations.json'
@@ -94,7 +94,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for this model
 
 ###### Performance tuning ########
-cfg.DATALOADER.NUM_WORKERS = 2
+cfg.DATALOADER.NUM_WORKERS = 0
 cfg.SOLVER.IMS_PER_BATCH = 4
 
 # Set for training 4 inputs
@@ -103,7 +103,7 @@ cfg.INPUT.NUM_IN_CHANNELS = 4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.MODEL.WEIGHTS = 'output_early_fusion_probablistic/out_model_final.pth'#'good_model/3_class/early_fusion/out_model_iter_100.pth'
+cfg.MODEL.WEIGHTS = 'good_model/3_class/early_fusion/out_model_early_fusion_gnll.pth'#'good_model/3_class/early_fusion/out_model_iter_100.pth'
 #cfg.MODEL.WEIGHTS = "good_model/3_class/early_fusion/out_model_iter_1000.pth"
 #cfg.MODEL.WEIGHTS = 'output_early_fusion_3_class/out_model_iter_8000.pth'
 test(cfg, dataset_test)

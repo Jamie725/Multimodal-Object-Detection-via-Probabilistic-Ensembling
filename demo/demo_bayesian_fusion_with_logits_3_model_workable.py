@@ -25,25 +25,7 @@ from detectron2.evaluation import FLIREvaluator
 from fvcore.common.file_io import PathManager
 from detectron2.pycocotools.coco import COCO
 from detectron2.pycocotools.cocoeval import COCOeval
-
-def batched_nms(boxes, scores, idxs, iou_threshold):
-    """
-    Same as torchvision.ops.boxes.batched_nms, but safer.
-    """
-    assert boxes.shape[-1] == 4
-    # TODO may need better strategy.
-    # Investigate after having a fully-cuda NMS op.
-    if len(boxes) < 40000:
-        return box_ops.batched_nms(boxes, scores, idxs, iou_threshold)
-
-    result_mask = scores.new_zeros(scores.size(), dtype=torch.bool)
-    for id in torch.unique(idxs).cpu().tolist():
-        mask = (idxs == id).nonzero().view(-1)
-        keep = nms(boxes[mask], scores[mask], iou_threshold)
-        result_mask[mask[keep]] = True
-    keep = result_mask.nonzero().view(-1)
-    keep = keep[scores[keep].argsort(descending=True)]
-    return keep
+from detectron2.layers.nms import batched_nms
 
 def avg_bbox_fusion(match_bbox_vec):
     avg_bboxs = np.sum(match_bbox_vec,axis=0) / len(match_bbox_vec)
@@ -81,11 +63,10 @@ def prob_fusion_multiclass(match_score_vec, pred_class, stds):
     sum_div_std = np.sum(1/stds)
     weight = 1/(stds * sum_div_std)
     scores = scores*weight[:,None]
-    #pdb.set_trace()
+    pdb.set_trace()
     log_scores = np.log(scores)
     sum_logits = np.sum(log_scores, axis=0)
-    exp_logits = np.exp(sum_logits)
-    pdb.set_trace()
+    exp_logits = np.exp(sum_logits)    
     #out_score = exp_logits[pred_class] / np.sum(exp_logits)
     score_norm = exp_logits / np.sum(exp_logits)
     out_score = np.max(score_norm)
@@ -132,10 +113,9 @@ def nms_1(info_1, info_2, info_3=''):
     return out_boxes, out_scores, out_class
 
 def weighted_box_fusion(bbox, score):
-    weight = score / np.sum(score)
-    out_bbox = np.zeros(4)
-    for i in range(len(score)):
-        out_bbox += weight[i] * bbox[i]
+    weight = score / np.sum(score)        
+    out_bbox = np.array(bbox) * weight[:,None]
+    out_bbox = np.sum(out_bbox, axis=0)    
     return out_bbox
 
 def prob_box_fusion(bbox, score, stds):    
@@ -231,9 +211,13 @@ def prepare_data(info1, info2, info3='', method=None):
     out_bbox = np.concatenate((bbox1, bbox2), axis=0)
     out_score = np.concatenate((score1, score2), axis=0)
     out_class = np.concatenate((class1, class2), axis=0)
-    if method:
+    if method == 'wt_var_box_fusion':
+        vars1 = info1['vars']
+        vars2 = info2['vars']
+        out_vars = np.concatenate((vars1, vars2), axis=0)
+    elif method:
         stds1 = info1['stds']
-        stds2 = info2['stds']        
+        stds2 = info2['stds']
         out_stds = np.concatenate((stds1, stds2), axis=0)
 
     # If more than two detections are fused
@@ -246,10 +230,13 @@ def prepare_data(info1, info2, info3='', method=None):
         out_score = np.concatenate((out_score, score3), axis=0)
         out_class = np.concatenate((out_class, class3), axis=0)
 
-        if method:
+        if method == 'wt_var_box_fusion':            
+            vars3 = info3['vars']
+            out_vars = np.concatenate((out_vars, vars3), axis=0)
+        elif method:
             stds3 = info3['stds']
             out_stds = np.concatenate((out_stds, stds3), axis=0)
-
+    
     if 'prob' in info1.keys():
         prob1 = np.array(info1['prob'])
         prob2 = np.array(info2['prob'])  
@@ -258,17 +245,21 @@ def prepare_data(info1, info2, info3='', method=None):
             prob3 = np.array(info3['prob'])  
             out_prob = np.concatenate((out_prob, prob3), axis=0)
         
-        if method:
+        if method == 'wt_var_box_fusion':
+            return out_bbox, out_score, out_class, out_logits, out_prob, out_vars
+        elif method:
             return out_bbox, out_score, out_class, out_logits, out_prob, out_stds
         else:    
             return out_bbox, out_score, out_class, out_logits, out_prob
     else:
-        if method:
+        if method == 'wt_var_box_fusion':
+            return out_bbox, out_score, out_class, out_logits, out_vars
+        elif method:
             return out_bbox, out_score, out_class, out_logits, out_stds
         else:
             return out_bbox, out_score, out_class, out_logits
 
-def nms_bayesian(dets, scores, classes, probs, thresh, method, stds=None):
+def nms_bayesian(dets, scores, classes, probs, thresh, method, stds=None, var=None):
     x1 = dets[:, 0] + classes * 640
     y1 = dets[:, 1] + classes * 512
     x2 = dets[:, 2] + classes * 640
@@ -329,16 +320,32 @@ def nms_bayesian(dets, scores, classes, probs, thresh, method, stds=None):
                 final_bbox = original_bbox
             elif method == 'baysian_avg_bbox':
                 final_score, out_class = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])                
+                #final_score = np.max(match_score)
                 out_classes.append(out_class)
                 match_bbox += [original_bbox]
                 final_bbox = avg_bbox_fusion(match_bbox)
             elif method == 'bayesian_wt_score_box':
                 final_score, out_class = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])
-                out_classes.append(out_class)                
+                #final_score = np.max(match_score)
+                out_classes.append(out_class)             
                 #if final_score < 0.5:
                 #    continue            
                 match_bbox += [original_bbox]
-                final_bbox = weighted_box_fusion(match_bbox, match_score)                
+                final_bbox = weighted_box_fusion(match_bbox, match_score)
+            elif method == 'wt_var_box_fusion':
+                match_var = list(var[match_ind])
+                try:
+                    original_var = var[i]
+                except:
+                    pdb.set_trace()
+                match_var += [original_var]
+                match_bbox += [original_bbox]
+                weights = 1/np.array(match_var)
+                final_score, out_class = bayesian_fusion_multiclass(np.asarray(match_prob), classes[i])
+                out_classes.append(out_class)
+                #final_bbox = original_bbox
+                final_bbox = weighted_box_fusion(match_bbox, np.squeeze(weights))
+                          
             elif method == 'bayesian_prior_wt_score_box':
                 """
                 This method is to set different ratios o priors to test how serious priors affect the overall performance (See supplements.)
@@ -383,6 +390,12 @@ def nms_bayesian(dets, scores, classes, probs, thresh, method, stds=None):
                 original_std = stds[i]
                 match_stds += [original_std]
                 final_bbox = prob_box_fusion(match_bbox, match_score, np.array(match_stds))
+            elif method == 'weighted_box_fusion':
+                final_score = np.mean(np.asarray(match_score))
+                final_score *= min(3, len(match_score))/3                
+                match_bbox += [original_bbox]
+                out_classes.append(classes[i])
+                final_bbox = weighted_box_fusion(match_bbox, match_score)
             match_scores.append(final_score)
             match_bboxs.append(final_bbox)
         else:
@@ -504,7 +517,7 @@ def fusion(method, info_1, info_2, info_3=''):
         out_boxes = in_boxes
         out_scores = torch.Tensor(in_scores)
         out_class = torch.Tensor(in_class)
-    elif method == 'bayesian' or method == 'baysian_avg_bbox' or method == 'avg_score' or method == 'avg_score_bbox' or method == 'avg_score_wt_score_box' or method == 'bayesian_wt_score_box' or method == 'bayesian_prior_wt_score_box':
+    elif method == 'bayesian' or method == 'baysian_avg_bbox' or method == 'avg_score' or method == 'avg_score_bbox' or method == 'avg_score_wt_score_box' or method == 'bayesian_wt_score_box' or method == 'bayesian_prior_wt_score_box' or method == 'weighted_box_fusion':
         threshold = 0.5
         in_boxes, in_scores, in_class, in_logits, in_prob = prepare_data(info_1, info_2, info3=info_3)
         keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, in_prob, threshold, method)
@@ -512,6 +525,10 @@ def fusion(method, info_1, info_2, info_3=''):
         threshold = 0.5
         in_boxes, in_scores, in_class, in_logits, in_prob, in_stds = prepare_data(info_1, info_2, info3=info_3, method=method)
         keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, in_prob, threshold, method, stds=in_stds)
+    elif method == 'wt_var_box_fusion':
+        threshold = 0.5
+        in_boxes, in_scores, in_class, in_logits, in_prob, in_vars = prepare_data(info_1, info_2, info3=info_3, method=method)
+        keep, out_scores, out_boxes, out_class = nms_bayesian(in_boxes, in_scores, in_class, in_prob, threshold, method, var=in_vars)
     elif method == 'avgLogits_softmax' or method == 'sumLogits_softmax' or method == 'logits_fusion' or method == 'sumLogits':
         threshold = 0.5
         in_boxes, in_scores, in_class, in_logits, _ = prepare_data(info_1, info_2, info3=info_3)
@@ -539,46 +556,37 @@ def draw_box(img, bbox, pred_class, color):
 def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=''):
     evaluator.reset()
     img_folder = '../../../Datasets/FLIR/val/thermal_8_bit/'
-    
-    num_img = len(det_2['image'])
-    count_1=0
-    count_2=0
-    count_fusion=0
-
     print('Method: ', method)
 
-    for i in range(num_img):
+    for i in range(len(det_2['image'])):
         info_1 = {}
         info_1['img_name'] = det_1['image'][i]
         info_1['bbox'] = det_1['boxes'][i]
         info_1['score'] = det_1['scores'][i]
         info_1['class'] = det_1['classes'][i]
         info_1['class_logits'] = det_1['class_logits'][i]
+        
         if 'probs' in det_1.keys():
             info_1['prob'] = det_1['probs'][i]
         if 'stds'  in det_1.keys():
             info_1['stds'] = det_1['stds'][i]
+        if 'vars' in det_1.keys():
+            info_1['vars'] = det_1['vars'][i]
         info_2 = {}
         info_2['img_name'] = det_2['image'][i].split('.')[0] + '.jpeg'
         info_2['bbox'] = det_2['boxes'][i]
         info_2['score'] = det_2['scores'][i]
         info_2['class'] = det_2['classes'][i]
-        info_2['class_logits'] = det_2['class_logits'][i]
+        info_2['class_logits'] = det_2['class_logits'][i]        
+
         if 'probs' in det_2.keys():
             info_2['prob'] = det_2['probs'][i]
         if 'stds'  in det_2.keys():
             info_2['stds'] = det_2['stds'][i]
+        if 'vars' in det_2.keys():
+            info_2['vars'] = det_2['vars'][i]
         
-        if len(info_1['bbox']) > 0:
-            num_1 = 1
-        else:
-            num_1 = 0
-        if len(info_2['bbox']) > 0:
-            num_2 = 1
-        else:
-            num_2 = 0
-        
-        num_detections = num_1 + num_2
+        num_detections = int(len(info_1['bbox']) > 0) + int(len(info_2['bbox']) > 0)
 
         if det_3:
             info_3 = {}
@@ -591,12 +599,9 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3='
                 info_3['prob'] = det_3['probs'][i]
             if 'stds' in det_3.keys():
                 info_3['stds'] = det_3['stds'][i]
-            if len(info_3['bbox']) > 0:
-                num_3 = 1
-            else:
-                num_3 = 0
-
-            num_detections += num_3
+            if 'vars' in det_3.keys():
+                info_3['vars'] = det_3['vars'][i]
+            num_detections += int(len(info_3['bbox']) > 0)
         
         # No detections
         if num_detections == 0:
@@ -686,17 +691,19 @@ if __name__ == '__main__':
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_multiclass_prob_score_Day.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_multiclass_prob_score_Day.json'
         """
-        #det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
-        #det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
-        #det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
-
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Day.json'
+        """
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_Day.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_Day.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_Day.json'
-
+        """
+        """
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_IoU_90_Day.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_IoU_90_Day.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_IoU_90_Day.json'
+        """
     elif time == 'Night':
         val_file_name = 'thermal_RGBT_pairs_3_class_Night.json'#'thermal_annotations_4_channel_no_dogs_Night.json'
         """
@@ -704,28 +711,35 @@ if __name__ == '__main__':
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_multiclass_prob_score_Night.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_multiclass_prob_score_Night.json'
         """
-        #det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
-        #det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
-        #det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_Night.json'
+        """
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_Night.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_Night.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_Night.json'
-
+        """
+        """
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_IoU_90_Night.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_IoU_90_Night.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_IoU_90_Night.json'
+        """
     else:
         """
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_with_multiclass_prob_score.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_with_multiclass_prob_score.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_with_multiclass_prob_score.json'
         """
-        """
+        #"""
         # Most commonly used
-        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
-        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
-        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
-        """
+        #det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        #det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        #det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score.json'
+        det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_gnll.json'
+        det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_gnll.json'
+        det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_gnll.json'
+        
+        #"""
         """
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_1000_proposals.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_1000_proposals.json'
@@ -737,21 +751,23 @@ if __name__ == '__main__':
         #det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr_IoU_90.json'
         
         #"""
+        """
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_w_score_higher_than_thr.json'
-        
-        
+        """
+        """
         det_file_1 = data_folder + 'val_'+model_1+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_dropout_1.json'
         det_file_2 = data_folder + 'val_'+model_2+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_dropout_1.json'
         det_file_3 = data_folder + 'val_'+model_3+'_predictions_IOU50_3_class_with_multiclass_prob_score_w_uncertainty_from_proposals_dropout_1.json'
+        """
         #"""
         """
         det_file_1 = data_folder + 'val_thermal_only_predictions_IOU50_3_class_with_multiclass_prob_score_thr_30.json'
         det_file_2 = data_folder + 'val_early_fusion_predictions_IOU50_3_class_with_multiclass_prob_score_thr_30.json'
         det_file_3 = data_folder + 'val_mid_fusion_predictions_IOU50_3_class_with_multiclass_prob_score_thr_30.json'
         """
-        val_file_name = 'thermal_RGBT_pairs_3_class.json'
+        val_file_name = 'thermal_RGBT_pairs_3_class.json'#'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_RGBT_pairs_3_class.json'
     
     print('detection file 1:', det_file_1)
     print('detection file 2:', det_file_2)
@@ -783,13 +799,13 @@ if __name__ == '__main__':
     cfg.INPUT.NUM_IN_CHANNELS = 3
     cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
     cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
-
+    
     # Read detection results
     det_1 = json.load(open(det_file_1, 'r'))
     det_2 = json.load(open(det_file_2, 'r'))
     det_3 = json.load(open(det_file_3, 'r'))
     
-    evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_'+data_set+'_probEn_IoU_90.out') 
+    evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_'+data_set+'_wt_box_fusion.out') 
     """
     Method lists: 'bayesian_prior_wt_score_box': This is for tuning different background prior
                   'bayesian_wt_score_box'                  
@@ -808,8 +824,10 @@ if __name__ == '__main__':
                   'bayesian_prob_box_fusion'
                   'bayesian_prob_alpha_box_fusion'
                   'avg_score_prob_box_fusion'
+                  'weighted_box_fusion'
+                  'wt_var_box_fusion'
     """    
-    method = 'baysian_avg_bbox'#'logits_fusion'
+    method = 'nms'#'logits_fusion'
     # PID: 18492
     # 3 inputs
     result = apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3=det_3)

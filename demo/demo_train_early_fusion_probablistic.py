@@ -56,7 +56,7 @@ model = 'faster_rcnn_R_101_FPN_3x'
 
 #files_names = [f for f in listdir(train_path) if isfile(join(train_path, f))]
 
-out_folder = 'output_early_fusion_probablistic_2'
+out_folder = '0228/output_early_fusion_gnll'
 out_model_path = os.path.join(out_folder, 'out_model_final.pth')
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
