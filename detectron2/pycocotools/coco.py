@@ -89,7 +89,7 @@ class COCO:
 
     def createIndex(self):
         # create index
-        print('creating index...')
+        # print('creating index...')
         anns, cats, imgs = {}, {}, {}
         imgToAnns,catToImgs = defaultdict(list),defaultdict(list)
         if 'annotations' in self.dataset:
@@ -109,7 +109,7 @@ class COCO:
             for ann in self.dataset['annotations']:
                 catToImgs[ann['category_id']].append(ann['image_id'])
 
-        print('index created!')
+        #print('index created!')
 
         # create class members
         self.anns = anns
@@ -311,7 +311,7 @@ class COCO:
         res = COCO()
         res.dataset['images'] = [img for img in self.dataset['images']]
 
-        print('Loading and preparing results...')
+        #print('Loading and preparing results...')
         tic = time.time()
         if type(resFile) == str or (PYTHON_VERSION == 2 and type(resFile) == unicode):
             anns = json.load(open(resFile))
@@ -357,7 +357,7 @@ class COCO:
                 ann['area'] = (x1-x0)*(y1-y0)
                 ann['id'] = id + 1
                 ann['bbox'] = [x0,y0,x1-x0,y1-y0]
-        print('DONE (t={:0.2f}s)'.format(time.time()- tic))
+        #print('DONE (t={:0.2f}s)'.format(time.time()- tic))
 
         res.dataset['annotations'] = anns
         res.createIndex()

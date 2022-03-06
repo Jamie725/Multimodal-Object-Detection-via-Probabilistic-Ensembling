@@ -40,7 +40,7 @@ Naming convention:
 """
 
 
-def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=None, estimate_uncertainty=False):
+def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=None, estimate_uncertainty=False, variance=torch.Tensor([])):
     """
     Call `fast_rcnn_inference_single_image` for all images.
 
@@ -65,18 +65,21 @@ def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, t
             that stores the topk most confidence detections.
         kept_indices: (list[Tensor]): A list of 1D tensor of length of N, each element indicates
             the corresponding boxes/scores index in [0, Ri) from the input, for image i.
-    """
+    """    
     if not class_logits == None:
         result_per_image = [
             fast_rcnn_inference_single_image(
-                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits, estimate_uncertainty=estimate_uncertainty
+                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits, estimate_uncertainty=estimate_uncertainty,
+                variance=variance
             )
             for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
         ]
+    
     else:
         result_per_image = [
             fast_rcnn_inference_single_image(
-                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, estimate_uncertainty=estimate_uncertainty
+                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, estimate_uncertainty=estimate_uncertainty, 
+                variance=variance
             )
             for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
         ]
@@ -125,7 +128,7 @@ def nms_calc_uncertainty(final_dets, final_scores, dets, scores, thresh):
 
 #Jamie
 def fast_rcnn_inference_single_image(
-    boxes, scores, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits=None, estimate_uncertainty=False
+    boxes, scores, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits=None, estimate_uncertainty=False, variance=torch.Tensor([])
 ):
     """
     Single-image inference. Return bounding-box detection results by thresholding
@@ -163,7 +166,6 @@ def fast_rcnn_inference_single_image(
     class_id = np.swapaxes(class_id, 1, 0)
     boxes_one_class = boxes[class_id[:,0], class_id[:,1],:].cpu().numpy()
     scores_one_class = np.max(scores.cpu().numpy(), axis=1)
-    
 
     if not class_logits == None:
         class_logits = class_logits[filter_inds[:,0]]
@@ -203,6 +205,9 @@ def fast_rcnn_inference_single_image(
         stds = nms_calc_uncertainty(boxes_final.cpu().numpy(), scores_final.cpu().numpy(), boxes.cpu().numpy(), scores_filtered.cpu().numpy(), 0.9)
         result.stds = torch.Tensor(stds).cuda()
     
+    if len(variance) > 0:
+        result.vars = variance[keep]        
+    
     return result, filter_inds_final[:, 0]
 
 
@@ -220,6 +225,7 @@ class FastRCNNOutputs(object):
         proposals,
         smooth_l1_beta=0,
         output_pred_logits=False,
+        variance=torch.Tensor([]),
     ):
         """
         Args:
@@ -245,11 +251,12 @@ class FastRCNNOutputs(object):
         """
         self.box2box_transform = box2box_transform
         self.num_preds_per_image = [len(p) for p in proposals]
-        self.pred_class_logits = pred_class_logits
+        self.pred_class_logits = pred_class_logits        
         self.pred_proposal_deltas = pred_proposal_deltas
         self.smooth_l1_beta = smooth_l1_beta
         self.image_shapes = [x.image_size for x in proposals]
         self.enable_output_pred_logits = output_pred_logits
+        self.variance = variance
 
         if len(proposals):
             box_type = type(proposals[0].proposal_boxes)
@@ -276,8 +283,7 @@ class FastRCNNOutputs(object):
         pred_classes = self.pred_class_logits.argmax(dim=1)
         bg_class_ind = self.pred_class_logits.shape[1] - 1
 
-        fg_inds = (self.gt_classes >= 0) & (self.gt_classes < bg_class_ind)
-        #pdb.set_trace()
+        fg_inds = (self.gt_classes >= 0) & (self.gt_classes < bg_class_ind)        
         num_fg = fg_inds.nonzero().numel()
         fg_gt_classes = self.gt_classes[fg_inds]
         fg_pred_classes = pred_classes[fg_inds]
@@ -292,6 +298,34 @@ class FastRCNNOutputs(object):
             if num_fg > 0:
                 storage.put_scalar("fast_rcnn/fg_cls_accuracy", fg_num_accurate / num_fg)
                 storage.put_scalar("fast_rcnn/false_negative", num_false_negative / num_fg)
+    
+    def bbox_gaussian_loss(self):
+        """
+        Compute Gaussian Negative Log Likelihood Loss
+        """
+        bg_class_ind = self.pred_class_logits.shape[1] - 1
+        fg_inds = torch.nonzero((self.gt_classes >= 0) & (self.gt_classes < bg_class_ind)).squeeze(
+            1
+        )
+        gt_proposal_deltas = self.box2box_transform.get_deltas(
+            self.proposals.tensor, self.gt_boxes.tensor
+        )
+        box_dim = gt_proposal_deltas.size(1)  # 4 or 5
+        cls_agnostic_bbox_reg = self.pred_proposal_deltas.size(1) == box_dim
+        device = self.pred_proposal_deltas.device
+        if cls_agnostic_bbox_reg:
+            # pred_proposal_deltas only corresponds to foreground class for agnostic
+            gt_class_cols = torch.arange(box_dim, device=device)
+        else:
+            fg_gt_classes = self.gt_classes[fg_inds]
+            # pred_proposal_deltas for class k are located in columns [b * k : b * k + b],
+            # where b is the dimension of box representation (4 or 5)
+            # Note that compared to Detectron1,
+            # we do not perform bounding box regression for background classes.
+            gt_class_cols = box_dim * fg_gt_classes[:, None] + torch.arange(box_dim, device=device)        
+        criterion = nn.GaussianNLLLoss()        
+        gaussianLoss = criterion(self.pred_proposal_deltas[fg_inds[:, None], gt_class_cols], gt_proposal_deltas[fg_inds], self.variance[fg_inds])
+        return gaussianLoss
 
     def softmax_cross_entropy_loss(self):
         """
@@ -332,7 +366,7 @@ class FastRCNNOutputs(object):
         device = self.pred_proposal_deltas.device
 
         bg_class_ind = self.pred_class_logits.shape[1] - 1
-
+        
         # Box delta loss is only computed between the prediction for the gt class k
         # (if 0 <= k < bg_class_ind) and the target; there is no loss defined on predictions
         # for non-gt classes and background.
@@ -370,7 +404,7 @@ class FastRCNNOutputs(object):
         # example in minibatch (2). Normalizing by the total number of regions, R,
         # means that the single example in minibatch (1) and each of the 100 examples
         # in minibatch (2) are given equal influence.
-        loss_box_reg = loss_box_reg / self.gt_classes.numel()
+        loss_box_reg = loss_box_reg / self.gt_classes.numel()        
         return loss_box_reg
 
     def _predict_boxes(self):
@@ -412,11 +446,18 @@ class FastRCNNOutputs(object):
 
         Returns:
             A dict of losses (scalar tensors) containing keys "loss_cls" and "loss_box_reg".
-        """
-        return {
-            "loss_cls": self.softmax_cross_entropy_loss(),
-            "loss_box_reg": self.smooth_l1_loss(),
-        }
+        """        
+        if len(self.variance) > 0:
+            return {            
+                "loss_cls": self.softmax_cross_entropy_loss(),
+                "loss_box_reg": self.smooth_l1_loss(),
+                "gaussian_loss": self.bbox_gaussian_loss()
+            }
+        else:
+            return {            
+                "loss_cls": self.softmax_cross_entropy_loss(),
+                "loss_box_reg": self.smooth_l1_loss(),             
+            }
 
     def predict_boxes(self):
         """
@@ -471,11 +512,17 @@ class FastRCNNOutputs(object):
         boxes = self.predict_boxes()
         scores = self.predict_probs()
         image_shapes = self.image_shapes
-        #pdb.set_trace()
+        
         if self.enable_output_pred_logits:
-            return fast_rcnn_inference(
-                boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=self.pred_class_logits, estimate_uncertainty=estimate_uncertainty
-            )
+            if len(self.variance) > 0:
+                return fast_rcnn_inference(
+                    boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=self.pred_class_logits, 
+                    estimate_uncertainty=estimate_uncertainty, variance=self.variance
+                )
+            else:
+                return fast_rcnn_inference(
+                    boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=self.pred_class_logits, estimate_uncertainty=estimate_uncertainty
+                )        
         else:
             return fast_rcnn_inference(
                 boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, estimate_uncertainty=estimate_uncertainty
@@ -502,6 +549,7 @@ class FastRCNNOutputLayers(nn.Module):
         test_topk_per_image=100,
         enable_output_logits=False,
         estimate_uncertainty=False,
+        enable_gaussianNLLoss=False
     ):
         """
         Args:
@@ -523,8 +571,7 @@ class FastRCNNOutputLayers(nn.Module):
         self.cls_score = Linear(input_size, num_classes + 1)
         num_bbox_reg_classes = 1 if cls_agnostic_bbox_reg else num_classes
         box_dim = len(box2box_transform.weights)
-        self.bbox_pred = Linear(input_size, num_bbox_reg_classes * box_dim)
-
+        self.bbox_pred = Linear(input_size, num_bbox_reg_classes * box_dim)        
         nn.init.normal_(self.cls_score.weight, std=0.01)
         nn.init.normal_(self.bbox_pred.weight, std=0.001)
         for l in [self.cls_score, self.bbox_pred]:
@@ -536,7 +583,12 @@ class FastRCNNOutputLayers(nn.Module):
         self.test_nms_thresh = test_nms_thresh
         self.test_topk_per_image = test_topk_per_image
         self.enable_output_logits = enable_output_logits
+        # Jamie
         self.estimate_uncertainty = estimate_uncertainty
+        self.enable_gaussianNLLoss = enable_gaussianNLLoss
+        if self.enable_gaussianNLLoss:
+            self.var_pred = Linear(input_size, 1)
+            nn.init.normal_(self.var_pred.weight, std=0.01)        
 
     @classmethod
     def from_config(cls, cfg, input_shape):
@@ -552,6 +604,7 @@ class FastRCNNOutputLayers(nn.Module):
             "test_topk_per_image"   : cfg.TEST.DETECTIONS_PER_IMAGE,
             "enable_output_logits"  : cfg.MODEL.ROI_BOX_HEAD.OUTPUT_LOGITS,
             "estimate_uncertainty"  : cfg.MODEL.ROI_HEADS.ESTIMATE_UNCERTAINTY,
+            "enable_gaussianNLLoss" : cfg.MODEL.ROI_HEADS.ENABLE_GAUSSIANNLLOSS,
             # fmt: on
         }
 
@@ -565,8 +618,11 @@ class FastRCNNOutputLayers(nn.Module):
             x = torch.flatten(x, start_dim=1)
         scores = self.cls_score(x)
         proposal_deltas = self.bbox_pred(x)
-        #import pdb; pdb.set_trace()
-        return scores, proposal_deltas
+        if self.enable_gaussianNLLoss:
+            variance = torch.exp(self.var_pred(x))
+            return scores, proposal_deltas, variance
+        else:
+            return scores, proposal_deltas
 
     # TODO: move the implementation to this class.
     def losses(self, predictions, proposals):
@@ -576,22 +632,42 @@ class FastRCNNOutputLayers(nn.Module):
             proposals (list[Instances]): proposals that match the features
                 that were used to compute predictions.
         """
-        scores, proposal_deltas = predictions
-        return FastRCNNOutputs(
-            self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta
-        ).losses()
-
-    def inference(self, predictions, proposals):
-        scores, proposal_deltas = predictions
-        #import pdb; pdb.set_trace()
-        if self.enable_output_logits:
+        # Jamie
+        if self.enable_gaussianNLLoss:
+            scores, proposal_deltas, variance = predictions
             return FastRCNNOutputs(
-                self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta, output_pred_logits=self.enable_output_logits,
-            ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image, self.estimate_uncertainty)
+                self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta, variance=variance
+            ).losses()
         else:
+            scores, proposal_deltas = predictions        
             return FastRCNNOutputs(
-                self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta,
-            ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image, self.estimate_uncertainty)
+                self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta
+            ).losses()
+
+    def inference(self, predictions, proposals):        
+        if self.enable_gaussianNLLoss:
+            scores, proposal_deltas, variance = predictions
+        else:
+            scores, proposal_deltas = predictions
+        
+        if self.enable_output_logits:
+            if self.enable_gaussianNLLoss:
+                return FastRCNNOutputs(
+                    self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta, output_pred_logits=self.enable_output_logits,variance=variance
+                ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image, self.estimate_uncertainty)
+            else:
+                return FastRCNNOutputs(
+                    self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta, output_pred_logits=self.enable_output_logits,
+                ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image, self.estimate_uncertainty)
+        else:
+            if self.enable_gaussianNLLoss:
+                return FastRCNNOutputs(
+                    self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta, variance=variance
+                ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image, self.estimate_uncertainty)
+            else:
+                return FastRCNNOutputs(
+                    self.box2box_transform, scores, proposal_deltas, proposals, self.smooth_l1_beta,
+                ).inference(self.test_score_thresh, self.test_nms_thresh, self.test_topk_per_image, self.estimate_uncertainty)
 
     def predict_boxes_for_gt_classes(self, predictions, proposals):
         scores, proposal_deltas = predictions

@@ -125,13 +125,13 @@ class COCOeval:
         :return: None
         '''
         tic = time.time()
-        print('Running per image evaluation...')
+        #print('Running per image evaluation...')
         p = self.params
         # add backward compatibility if useSegm is specified in params
         if not p.useSegm is None:
             p.iouType = 'segm' if p.useSegm == 1 else 'bbox'
             print('useSegm (deprecated) is not None. Running {} evaluation'.format(p.iouType))
-        print('Evaluate annotation type *{}*'.format(p.iouType))
+        #print('Evaluate annotation type *{}*'.format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
             p.catIds = list(np.unique(p.catIds))
@@ -159,7 +159,7 @@ class COCOeval:
              ]
         self._paramsEval = copy.deepcopy(self.params)
         toc = time.time()
-        print('DONE (t={:0.2f}s).'.format(toc-tic))
+        #print('DONE (t={:0.2f}s).'.format(toc-tic))
 
     def computeIoU(self, imgId, catId):
         p = self.params
@@ -319,7 +319,7 @@ class COCOeval:
         :param p: input params for evaluation
         :return: None
         '''
-        print('Accumulating evaluation results...')
+        #print('Accumulating evaluation results...')
         tic = time.time()
         if not self.evalImgs:
             print('Please run evaluate() first')
@@ -420,7 +420,7 @@ class COCOeval:
         }
         #pdb.set_trace()
         toc = time.time()
-        print('DONE (t={:0.2f}s).'.format( toc-tic))
+        #print('DONE (t={:0.3f}s).'.format( toc-tic))
 
     def summarize(self):
         '''
@@ -456,7 +456,9 @@ class COCOeval:
                 mean_s = -1
             else:
                 mean_s = np.mean(s[s>-1])
-            print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
+            #if iouStr == '0.50' or (titleStr == 'Average Recall' and areaRng == 'large'):
+            if iouStr == '0.50':
+                print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
             #pdb.set_trace()
             return mean_s
         def _summarizeDets():
@@ -473,6 +475,7 @@ class COCOeval:
             stats[9] = _summarize(0, areaRng='small', maxDets=self.params.maxDets[2])
             stats[10] = _summarize(0, areaRng='medium', maxDets=self.params.maxDets[2])
             stats[11] = _summarize(0, areaRng='large', maxDets=self.params.maxDets[2])
+            
             return stats
         def _summarizeKps():
             stats = np.zeros((10,))

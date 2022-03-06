@@ -49,7 +49,22 @@ def read_image(file_name, format=None):
         image (np.ndarray): an HWC image
     """
     with PathManager.open(file_name, "rb") as f:
-        if format == "BGRT":
+        if format == "BGRT":            
+            #"""
+            # KAIST
+            folder = file_name.split('visible')[0]
+            img_name = file_name.split('visible/')[1]
+            path_rgb = file_name
+            path_thermal = folder + 'lwir/' + img_name
+            img_rgb = cv2.imread(path_rgb)
+            img_thermal = cv2.imread(path_thermal)
+                        
+            image = np.zeros((img_thermal.shape[0], img_thermal.shape[1], 4))
+            image [:,:,0:3] = img_rgb
+            image [:,:,3] = img_thermal[:,:,0]
+            
+            """
+            # FLIR
             folder = file_name.split('thermal_8_bit/')[0]
             img_name = file_name.split('thermal_8_bit/')[1]
             img_name = img_name.split('.')[0] + '.jpg'
@@ -62,13 +77,27 @@ def read_image(file_name, format=None):
             image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 4))
             image [:,:,0:3] = rgb_img
             image [:,:,3] = thermal_img[:,:,0]
+            """
         elif format == 'BGR_only':            
             folder = file_name.split('thermal_8_bit/')[0]
             img_name = file_name.split('thermal_8_bit/')[1]
             img_name = img_name.split('.')[0] + '.jpg'
             rgb_path = folder + 'resized_RGB/' + img_name            
             image = cv2.imread(rgb_path)            
-        elif format == 'BGRTTT': # middle fusion        
+        elif format == 'BGRTTT': # middle fusion   
+            """
+            # KAIST
+            folder = file_name.split('visible')[0]
+            img_name = file_name.split('visible/')[1]
+            path_rgb = file_name
+            path_thermal = folder + 'lwir/' + img_name
+            img_rgb = cv2.imread(path_rgb)
+            img_thermal = cv2.imread(path_thermal)                        
+            image = np.zeros((img_thermal.shape[0], img_thermal.shape[1], 6))
+            image [:,:,0:3] = img_rgb
+            image [:,:,3:] = img_thermal
+            """ 
+            # FLIR
             folder = file_name.split('thermal_8_bit/')[0]
             img_name = file_name.split('thermal_8_bit/')[-1]
             
@@ -81,6 +110,7 @@ def read_image(file_name, format=None):
             image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 6))
             image [:,:,0:3] = rgb_img
             image [:,:,3:6] = thermal_img
+            #"""
         elif format == 'BGRTTT_perturb':
             
             folder = file_name.split('thermal_8_bit/')[0]
@@ -229,7 +259,7 @@ def read_image(file_name, format=None):
             image[:,:,3] = thr[:,:,0]
             
         else:
-            #pdb.set_trace()
+            #import pdb; pdb.set_trace()
             image = Image.open(f)
 
             # capture and ignore this bug: https://github.com/python-pillow/Pillow/issues/3973

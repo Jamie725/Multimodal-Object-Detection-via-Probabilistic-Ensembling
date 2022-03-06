@@ -276,6 +276,7 @@ _C.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
 _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT = True
 # Save out pre-nms bbox, score, class
 _C.MODEL.ROI_HEADS.ESTIMATE_UNCERTAINTY = False
+_C.MODEL.ROI_HEADS.ENABLE_GAUSSIANNLLOSS = False
 # ---------------------------------------------------------------------------- #
 # Box Head
 # ---------------------------------------------------------------------------- #

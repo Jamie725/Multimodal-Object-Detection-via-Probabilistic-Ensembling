@@ -68,8 +68,9 @@ class StandardRPNHead(nn.Module):
         # 1x1 conv for predicting box2box transform deltas
         self.anchor_deltas = nn.Conv2d(
             in_channels, num_cell_anchors * box_dim, kernel_size=1, stride=1
-        )        
-    
+        )
+        #self.fc = 
+        
         for l in [self.conv, self.objectness_logits, self.anchor_deltas]:
             nn.init.normal_(l.weight, std=0.01)
             nn.init.constant_(l.bias, 0)
@@ -84,7 +85,8 @@ class StandardRPNHead(nn.Module):
         for x in features:
             t = F.relu(self.conv(x))            
             pred_objectness_logits.append(self.objectness_logits(t))
-            pred_anchor_deltas.append(self.anchor_deltas(t))            
+            pred_anchor_deltas.append(self.anchor_deltas(t))
+        #import pdb; pdb.set_trace()
         return pred_objectness_logits, pred_anchor_deltas
 
 

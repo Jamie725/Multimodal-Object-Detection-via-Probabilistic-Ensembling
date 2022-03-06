@@ -408,13 +408,11 @@ class Res5ROIHeads(ROIHeads):
                 # features.
                 mask_features = box_features[torch.cat(fg_selection_masks, dim=0)]
                 del box_features
-                losses.update(self.mask_head(mask_features, proposals))
-            import pdb; pdb.set_trace()
+                losses.update(self.mask_head(mask_features, proposals))            
             return [], losses
         else:
             pred_instances, _ = self.box_predictor.inference(predictions, proposals)
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
-            import pdb; pdb.set_trace()
             return pred_instances, {}
 
     def forward_with_given_boxes(self, features, instances):
@@ -489,8 +487,9 @@ class StandardROIHeads(ROIHeads):
         self.box_head = build_box_head(
             cfg, ShapeSpec(channels=in_channels, height=pooler_resolution, width=pooler_resolution)
         )
-        self.box_predictor = FastRCNNOutputLayers(cfg, self.box_head.output_shape)
 
+        self.box_predictor = FastRCNNOutputLayers(cfg, self.box_head.output_shape)
+        
     def _init_mask_head(self, cfg, input_shape):
         # fmt: off
         self.mask_on           = cfg.MODEL.MASK_ON
@@ -618,9 +617,9 @@ class StandardROIHeads(ROIHeads):
         features = [features[f] for f in self.in_features]        
         box_features = self.box_pooler(features, [x.proposal_boxes for x in proposals])        
         box_features = self.box_head(box_features)        
-        predictions = self.box_predictor(box_features)
+        predictions = self.box_predictor(box_features) #FastRCNNOutputLayers.forward()        
         del box_features
-        #import pdb;pdb.set_trace()
+
         if self.training:
             if self.train_on_pred_boxes:
                 with torch.no_grad():
@@ -631,8 +630,7 @@ class StandardROIHeads(ROIHeads):
                         proposals_per_image.proposal_boxes = Boxes(pred_boxes_per_image)
             return self.box_predictor.losses(predictions, proposals)
         else:
-            pred_instances, _ = self.box_predictor.inference(predictions, proposals)
-            #import pdb; pdb.set_trace()
+            pred_instances, _ = self.box_predictor.inference(predictions, proposals)            
             return pred_instances
 
     def _forward_mask(

@@ -28,7 +28,7 @@ def register_coco_instances(name, metadata, json_file, image_root):
         json_file (str): path to the json instance annotation file.
         image_root (str): directory which contains all the images.
     """
-    # 1. register a function which returns dicts
+    # 1. register a function which returns dicts    
     DatasetCatalog.register(name, lambda: load_coco_json(json_file, image_root, name))
 
     # 2. Optionally, add metadata about this dataset,

@@ -186,7 +186,6 @@ class FLIREvaluator(DatasetEvaluator):
 
         self._logger.info("Evaluating predictions ...")
 
-        #pdb.set_trace()
         for task in sorted(tasks):
             coco_eval = (
                 _evaluate_predictions_on_coco(
@@ -200,7 +199,8 @@ class FLIREvaluator(DatasetEvaluator):
             res = self._derive_coco_results(
                 coco_eval, task, class_names=self._metadata.get("thing_classes")
             )
-            self._results[task] = res
+            #import pdb; pdb.set_trace()
+            self._results[task] = res            
 
     def _eval_box_proposals(self):
         """
@@ -290,7 +290,7 @@ class FLIREvaluator(DatasetEvaluator):
             # max dets index -1: typically 100 per image
             precision = precisions[:, :, idx, 0, -1]
             precision = precision[precision > -1]
-            
+            # Jamie
             ap = np.mean(precision) if precision.size else float("nan")
             results_per_category.append(("{}".format(name), float(ap * 100)))
         
@@ -306,8 +306,9 @@ class FLIREvaluator(DatasetEvaluator):
             numalign="left",
         )
         self._logger.info("Per-category {} AP: \n".format(iou_type) + table)
-        
+        #import pdb; pdb.set_trace()
         results.update({"AP-" + name: ap for name, ap in results_per_category})
+        ##import pdb; pdb.set_trace()
         return results
 
 # ======================================== #
@@ -532,6 +533,8 @@ def _evaluate_predictions_on_coco(coco_gt, coco_results, iou_type, kpt_oks_sigma
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
+    #import pdb; pdb.set_trace()
+    #coco_eval.stats
 
     # coco_eval.eval['precision'][T, R, K, A, M]
     # T: IoU region, 0.5:0.95, 0.05 as a step, size 10
@@ -540,7 +543,7 @@ def _evaluate_predictions_on_coco(coco_gt, coco_results, iou_type, kpt_oks_sigma
     # A: Area size, (all, small, medium, large), size 4
     # M: maxDets, (1, 10, 100), size 3 
     if out_eval_path:        
-        print("---------- Saving evaluation results! ------")
+        #print("---------- Saving evaluation results! ------")
         with open(out_eval_path,'wb') as f: 
             pickle.dump(coco_eval, f)
 
