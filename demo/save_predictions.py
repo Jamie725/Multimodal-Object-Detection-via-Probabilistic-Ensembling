@@ -36,14 +36,14 @@ dataset_name = 'FLIR'
 data_set = 'val'
 RGB_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/RGB/'
 t_path = '../../../Datasets/'+ dataset_name +'/'+data_set+'/thermal_8_bit/'
-data_gen = 'early_fusion'#'early_fusion'#'thermal_only'#'midddle_fusion'
+data_gen = 'midddle_fusion'#'early_fusion'#'thermal_only'#'midddle_fusion'
 print('==========================')
 print('model:', data_gen)
 print('==========================')
 # Build image id dictionary
 #val_file_name = 'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_annotations_4_channel_no_dogs_3_class.json'#'thermal_annotations_4_channel_no_dogs_Night.json'#'RGB_annotations_4_channel_no_dogs.json'
 #val_json_path = '../../../Datasets/FLIR/'+data_set+'/' + val_file_name
-val_file_name = 'thermal_RGBT_pairs_3_class.json' #'thermal_RGBT_pairs_3_class_Day.json' #'thermal_RGBT_pairs_3_class_Night.json'
+val_file_name = 'thermal_RGBT_pairs_3_class_Night.json'#'thermal_RGBT_pairs_3_class.json' #'thermal_RGBT_pairs_3_class_Day.json' #'thermal_RGBT_pairs_3_class_Night.json'
 val_json_path = '../../../Datasets/FLIR/'+data_set+'/' + val_file_name
 data = json.load(open(val_json_path, 'r'))
 name_to_id_dict = {}
@@ -94,7 +94,7 @@ elif data_gen == 'early_fusion':
 elif data_gen == 'midddle_fusion':
     #cfg.MODEL.WEIGHTS = 'good_model/midddle_fusion/out_model_iter_42000.pth'
     #cfg.MODEL.WEIGHTS = 'good_model/3_class/midddle_fusion/out_model_iter_100.pth'
-    cfg.MODEL.WEIGHTS = 'good_model/3_class/mid_fusion/out_model_mid_fusion_gnll.pth'
+    cfg.MODEL.WEIGHTS = 'good_model/3_class/mid_fusion/out_model_middle_fusion_gnll.pth'
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
     cfg.INPUT.FORMAT = 'BGRTTT'
     cfg.INPUT.NUM_IN_CHANNELS = 6 #4
@@ -114,7 +114,7 @@ predictor = DefaultPredictor(cfg)
 predictor.model.eval()
 
 valid_class = [0, 1, 2]
-out_pred_file = out_folder+data_set+'_'+data_gen+'_predictions_IOU50_3_class_with_multiclass_gnll.json'
+out_pred_file = out_folder+data_set+'_'+data_gen+'_predictions_IOU50_3_class_with_multiclass_gnll_Night.json'
 print('out file:', out_pred_file)
 out_dicts = {}
 image_dict = []

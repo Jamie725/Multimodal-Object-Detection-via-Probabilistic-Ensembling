@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 import os
 import pdb
-
+import time
 # get path
 #mypath = 'input/FLIR/Day/'
 dataset = 'FLIR'
@@ -30,16 +30,17 @@ cfg.INPUT.FORMAT = 'BGRTTT'
 cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-cfg.MODEL.WEIGHTS = "good_model/3_class/mid_fusion/out_model_iter_100.pth"
+cfg.MODEL.WEIGHTS = "good_model/3_class/mid_fusion/out_model_middle_fusion.pth"
 # -------------------------------------- #
 #Draw trained thermal
 #cfg.MODEL.WEIGHTS = os.path.join('output_val/good_model', "model_0009999.pth")
 #cfg.MODEL.ROI_HEADS.NUM_CLASSES = 17
 
 # Create predictor
-
+total_time = 0
 predictor = DefaultPredictor(cfg)
-for i in range(len(files_names)):
+#for i in range(len(files_names)):
+for i in range(10):
     # ------------ Prepare for inputs ------------- #
     #files_names[i] = 'FLIR_09062.jpg'
     path_t = '../../../Datasets/'+ dataset +'/'+train_or_val+'/thermal_8_bit/'
@@ -58,18 +59,24 @@ for i in range(len(files_names)):
         print('file = ',file_img)
         
         # Make prediction
+        start  = time.time()
         outputs = predictor(image)
-        pdb.set_trace()
+        end  = time.time()
+        total_time += (end - start)
+        #pdb.set_trace()
         name = files_names[i].split('.')[0] + '.jpg'
         #print('name = ', files_names[i])
         out_name = out_folder +'/'+ name
         #out_name = 'FLIR_08743_thermal.jpg'
         print(out_name)
-
+        """
         v = Visualizer(thermal_img[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
         v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
         #cv2.imshow('img_t',v.get_image()[:, :, ::-1])
         #cv2.waitKey(0)
         v.save(out_name)
         #pdb.set_trace()
+        """
+
+print('Average time:', total_time / 10)
         

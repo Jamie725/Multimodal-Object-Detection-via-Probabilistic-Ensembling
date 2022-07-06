@@ -32,14 +32,10 @@ def test_during_train(cfg, dataset_name, save_eval_name, save_folder):
     inference_on_dataset(trainer.model, val_loader, evaluator_FLIR)
 
 def test(cfg, dataset_name, file_name='FLIR_early_fusion_result.out'):
-    
     cfg.DATASETS.TEST = (dataset_name, )
-    predictor = DefaultPredictor(cfg)
-    #evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, out_pr_name='pr_val.png')
-    out_name = out_folder+file_name
-    
-    evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path=out_name)
-    #DefaultTrainer.test(cfg, trainer.model, evaluators=evaluator_FLIR)
+    predictor = DefaultPredictor(cfg)    
+    out_name = out_folder + file_name
+    evaluator_FLIR = FLIREvaluator(dataset_name, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path=out_name)    
     val_loader = build_detection_test_loader(cfg, dataset_name)
     inference_on_dataset(predictor.model, val_loader, evaluator_FLIR)
 
@@ -106,5 +102,5 @@ cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
 cfg.MODEL.WEIGHTS = 'good_model/3_class/early_fusion/out_model_early_fusion_gnll.pth'#'good_model/3_class/early_fusion/out_model_iter_100.pth'
 #cfg.MODEL.WEIGHTS = "good_model/3_class/early_fusion/out_model_iter_1000.pth"
 #cfg.MODEL.WEIGHTS = 'output_early_fusion_3_class/out_model_iter_8000.pth'
-test(cfg, dataset_test)
+test(cfg, dataset_test, file_name='FLIR_early_fusion_gnll.out')
 #test_during_train(cfg, dataset_test, 'FLIR_early_fusion_result.out', 'out/mAP/')

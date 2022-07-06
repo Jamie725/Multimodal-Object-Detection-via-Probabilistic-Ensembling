@@ -107,9 +107,9 @@ cfg.INPUT.NUM_IN_CHANNELS = 6 #4
 cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 #cfg.MODEL.WEIGHTS = 'good_model/mid_fusion/out_model_iter_42000.pth'
-cfg.MODEL.WEIGHTS = '0303/output_mid_fusion_gnll/out_model_middle_fusion_best.pth'#'good_model/3_class/mid_fusion/out_model_mid_fusion_gnll.pth'#'good_model/3_class/mid_fusion/out_model_iter_100.pth'#"output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
+cfg.MODEL.WEIGHTS = 'good_model/3_class/mid_fusion/out_model_middle_fusion_gnll.pth'#'good_model/3_class/mid_fusion/out_model_mid_fusion_gnll.pth'#'good_model/3_class/mid_fusion/out_model_iter_100.pth'#"output_mid_fusion_cont_lr_0_001/out_model_iter_42000.pth"
 
 #test_during_train(trainer, dataset_train)
 #test_during_train(cfg, trainer, dataset_test)
 #test_during_train(cfg, dataset_test, 'FLIR_middle_fusion_result.out', 'out/mAP/')
-test(cfg, dataset_test, 'FLIR_middle_fusion_3_class.out', out_folder)
+test(cfg, dataset_test, 'FLIR_middle_fusion_gnll.out', out_folder)

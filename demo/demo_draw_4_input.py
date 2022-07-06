@@ -9,6 +9,7 @@ import numpy as np
 import cv2
 import os
 import pdb
+import time
 
 # get path
 #mypath = 'input/FLIR/Day/'
@@ -26,7 +27,7 @@ cfg = get_cfg()
 cfg.merge_from_file("./configs/COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml")
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
 #cfg.MODEL.WEIGHTS = "detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl"
-cfg.MODEL.WEIGHTS = os.path.join('output_val/good_model', "out_model_iter_44000.pth")
+cfg.MODEL.WEIGHTS = os.path.join('good_model/3_class/early_fusion', "out_model_early_fusion.pth")
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80
 cfg.INPUT.FORMAT = 'BGRT'
 cfg.INPUT.NUM_IN_CHANNELS = 4
@@ -34,8 +35,9 @@ cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438]
 cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0]
 # Create predictor
 predictor = DefaultPredictor(cfg)
-
+total_time = 0
 for i in range(len(files_names)):
+
     # get image
     #file_img = path + 'FLIR_05440.jpeg'
     file_name_rgb = rgb_path + files_names[i]
@@ -52,14 +54,17 @@ for i in range(len(files_names)):
     print('file = ',file_name_rgb)
   
     # Make prediction
+    start = time.time()
     outputs = predictor(img)
-    
+    end = time.time()
+    total_time += (end - start)
+
     name = files_names[i].split('.')[0] + '_thermal.jpg'
     #print('name = ', files_names[i])
     out_name = out_folder +'/'+ name
     print(out_name)
     #pdb.set_trace()
-
+    #"""
     v = Visualizer(ther_img[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
     v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
     #cv2.imshow('img',v.get_image()[:, :, ::-1])
@@ -72,5 +77,6 @@ for i in range(len(files_names)):
     v = Visualizer(rgb_img[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
     v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
     v.save(out_name)
+    #"""
     
-    
+print('Average time =', total_time/len(files_names))

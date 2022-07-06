@@ -50,7 +50,7 @@ def read_image(file_name, format=None):
     """
     with PathManager.open(file_name, "rb") as f:
         if format == "BGRT":            
-            #"""
+            """
             # KAIST
             folder = file_name.split('visible')[0]
             img_name = file_name.split('visible/')[1]
@@ -77,7 +77,7 @@ def read_image(file_name, format=None):
             image = np.zeros((thermal_img.shape[0], thermal_img.shape[1], 4))
             image [:,:,0:3] = rgb_img
             image [:,:,3] = thermal_img[:,:,0]
-            """
+            #"""
         elif format == 'BGR_only':            
             folder = file_name.split('thermal_8_bit/')[0]
             img_name = file_name.split('thermal_8_bit/')[1]

@@ -633,6 +633,7 @@ class FastRCNNOutputLayers(nn.Module):
                 that were used to compute predictions.
         """
         # Jamie
+        import pdb; pdb.set_trace()
         if self.enable_gaussianNLLoss:
             scores, proposal_deltas, variance = predictions
             return FastRCNNOutputs(

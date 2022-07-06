@@ -22,7 +22,7 @@ import time
 torch.cuda.set_device(1)
 # Model selection
 model = 'faster_rcnn_R_50_FPN_3x'
-data_gen = 'early_fusion'#'rgb_only'#'thermal_only'
+data_gen = 'rgb_only'#'rgb_only'#'thermal_only'
 out_folder = 'out/box_predictions/KAIST/'+data_gen+'/'
 out_file_name = out_folder+'KAIST_'+data_gen+'_gnll.txt'
 #############################################
@@ -55,7 +55,7 @@ if data_gen == 'thermal_only':
     cfg.INPUT.NUM_IN_CHANNELS = 3
     cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]#[225.328, 226.723, 235.070]#
     cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
-    cfg.MODEL.WEIGHTS = '/home/jamie/Desktop/kaist_final_models/output_thermal_67/model_0029999.pth'#'good_model/KAIST/RGB/out_model_iter_2500.pth'
+    cfg.MODEL.WEIGHTS = 'good_model/KAIST/thermal_only/out_model_thermal_only_gnll_18_99.pth'#'/home/jamie/Desktop/kaist_final_models/output_thermal_67/model_0029999.pth'#'good_model/KAIST/RGB/out_model_iter_2500.pth'
 if data_gen == 'rgb_only':
     cfg.INPUT.FORMAT = 'BGR'
     cfg.INPUT.NUM_IN_CHANNELS = 3
@@ -63,24 +63,27 @@ if data_gen == 'rgb_only':
     cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
     #cfg.MODEL.WEIGHTS = '/home/jamie/Desktop/kaist_final_models/output_RGB_59/model_0009999.pth'#'good_model/KAIST/RGB/out_model_iter_2500.pth'
     #cfg.MODEL.WEIGHTS = 'out_KAIST_model/rgb_only_gnll_0304/out_model_rgb_only_best_gnll.pth'#'/home/jamie/Desktop/kaist_final_models/output_RGB_59/model_0004999.pth'#'out_KAIST_model/rgb_only_gnll_0304/out_model_rgb_only_best_gnll.pth'#'good_model/KAIST/RGB/out_model_iter_2500.pth'
-    cfg.MODEL.WEIGHTS = 'out_KAIST_model/rgb_only_gnll_0304/out_model_rgb_only_best_gnll_18_67.pth'
+    cfg.MODEL.WEIGHTS = 'good_model/KAIST/rgb_only/out_model_rgb_only_best_gnll_18_67.pth'
 elif data_gen == 'early_fusion':
     cfg.INPUT.FORMAT = 'BGRT'
     cfg.INPUT.NUM_IN_CHANNELS = 4
     cfg.MODEL.PIXEL_MEAN += [135.438]  # normalization!!
     cfg.MODEL.PIXEL_STD += [1.00]
-    cfg.MODEL.WEIGHTS = 'out_KAIST_model/early_fusion_gnll_0303_2/out_model_early_fusion_best_gnll.pth'#'/home/jamie/Desktop/kaist_final_models/early_fusion_model_23/model_0039999.pth'#'good_model/KAIST/RGB/out_model_iter_2500.pth'
+    cfg.MODEL.WEIGHTS = 'out_KAIST_model/early_fusion_gnll_0305/out_model_early_fusion_best_gnll.pth'#'/home/jamie/Desktop/kaist_final_models/early_fusion_model_23/model_0039999.pth'#'good_model/KAIST/RGB/out_model_iter_2500.pth'
 elif data_gen == 'middle_fusion':
     cfg.INPUT.FORMAT = 'BGRTTT'
     cfg.INPUT.NUM_IN_CHANNELS = 6
     cfg.MODEL.PIXEL_MEAN += [135.438, 135.438, 135.438]  # normalization!!
     cfg.MODEL.PIXEL_STD += [1.00, 1.00, 1.00]
     #cfg.MODEL.WEIGHTS = '/home/jamie/Desktop/kaist_final_models/output_middle_fusion/model_0029999.pth'#'good_model/KAIST/RGB/out_model_iter_2500.pth'
-    cfg.MODEL.WEIGHTS = 'out_KAIST_model/middle_fusion_gnll_0303/out_model_middle_fusion_best_gnll_14_74.pth'
+    cfg.MODEL.WEIGHTS = 'good_model/KAIST/middle_fusion/out_model_middle_fusion_gnll_14_48.pth'
 # Init predictor
 cfg.DATASETS.TEST = (dataset_test, )
+cfg.MODEL.ROI_HEADS.ENABLE_GAUSSIANNLLOSS = True
+cfg.MODEL.ROI_BOX_HEAD.OUTPUT_LOGITS = True
 predictor = DefaultPredictor(cfg)
 from evalKAIST.evaluation_script import evaluate
+
 
 # Read KIAST file list
 img_folder = '../../../Datasets/KAIST/'
@@ -88,7 +91,8 @@ file_path = img_folder + 'KAIST_evaluation/data/kaist-rgbt/splits/test-all-20.tx
 with open(file_path) as f:contents = f.readlines()
 
 img_folder = '../../../Datasets/KAIST/test/'
-
+var_dict = {}
+var_dict_name = out_folder + 'KAIST_' + data_gen + '_variance.npz'
 with open(out_file_name, mode='w') as f:
     for i in tqdm(range(len(contents)), desc='Predict Progress'):        
         fpath = contents[i].split('\n')[0]
@@ -121,6 +125,9 @@ with open(out_file_name, mode='w') as f:
     
         # Make prediction
         outputs = predictor(inputs)
+        variance = outputs['instances']._fields['vars']
+        var_dict[i+1] = variance
+
         # Output to file for evaluation
         num_box = len(outputs['instances']._fields['pred_boxes'])        
         for j in range(num_box):
@@ -134,4 +141,5 @@ with open(out_file_name, mode='w') as f:
             f.write(','+str(score))
             f.write('\n')
 f.close()
+np.savez(var_dict_name, vars=var_dict)
 evaluate('demo/evalKAIST/KAIST_annotation.json', out_file_name, 'Multispectral')
