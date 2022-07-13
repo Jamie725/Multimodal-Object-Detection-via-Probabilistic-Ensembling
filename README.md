@@ -1,4 +1,4 @@
-# Multimodal Object Detection via Probabilistic Ensembling
+# Multimodal Object Detection via Probabilistic Ensembling (Updating)
 
 [ECCV 2022](https://eccv2022.ecva.net/)
 
