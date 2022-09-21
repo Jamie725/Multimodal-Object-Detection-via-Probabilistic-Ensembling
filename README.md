@@ -1,4 +1,4 @@
-# Multimodal Object Detection via Probabilistic Ensembling (Updating)
+# Multimodal Object Detection via Probabilistic Ensembling (Codes updating, unfinished)
 
 [ECCV 2022](https://eccv2022.ecva.net/) Oral presentation
 
