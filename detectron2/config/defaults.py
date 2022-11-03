@@ -273,7 +273,7 @@ _C.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
 # If True, augment proposals with ground-truth boxes before sampling proposals to
 # train ROI heads.
 _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT = True
-
+_C.MODEL.ROI_HEADS.ENABLE_GAUSSIANNLLOSS = False
 # ---------------------------------------------------------------------------- #
 # Box Head
 # ---------------------------------------------------------------------------- #
