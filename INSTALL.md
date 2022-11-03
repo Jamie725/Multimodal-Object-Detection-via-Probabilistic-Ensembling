@@ -20,10 +20,6 @@ also installs detectron2 with a few simple commands.
 
 After having the above dependencies and gcc & g++ ≥ 5, run:
 ```
-python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
-# (add --user if you don't have permission)
-
-# Or, to install it from a local clone:
 git clone https://github.com/facebookresearch/detectron2.git
 cd detectron2 && python -m pip install -e .
 

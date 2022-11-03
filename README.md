@@ -6,6 +6,7 @@
 [[code]](https://github.com/Jamie725/RGBT-detection)
 [[video demo]](https://youtu.be/VH7826g8u7c "RGBT-detection")
 [[paper]](https://arxiv.org/abs/2104.02904)
+[[models]](https://drive.google.com/drive/folders/1U1qXYPmts8Xl9xhc1Asb_VpR-_szfNv9?usp=sharing)
 
 
 **Authors**: Yi-Ting Chen<sup>\*</sup>, 
