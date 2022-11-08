@@ -11,6 +11,8 @@
 
 The results of ProbEn in KAIST has released [here](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing)! 
 
+The other parts will be released after CVPR deadline!
+
 **Authors**: Yi-Ting Chen<sup>\*</sup>, 
 Jinghao Shi<sup>\*</sup>, 
 Zelin Ye<sup>\*</sup>, Christoph Mertz, Deva Ramanan<sup>#</sup>, Shu Kong<sup>#</sup>
