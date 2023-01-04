@@ -1,6 +1,6 @@
-# Multimodal Object Detection via Probabilistic Ensembling (Codes updating, unfinished)
+# Multimodal Object Detection via Probabilistic Ensembling
 
-[ECCV 2022](https://eccv2022.ecva.net/) Oral presentation
+[ECCV 2022](https://eccv2022.ecva.net/) Oral presentation 
 
 [[project page]](https://mscvprojects.ri.cmu.edu/2020teamc/ "RGBT-detection") 
 [[code]](https://github.com/Jamie725/RGBT-detection)
@@ -9,9 +9,7 @@
 [[models]](https://drive.google.com/drive/folders/1U1qXYPmts8Xl9xhc1Asb_VpR-_szfNv9?usp=sharing)
 [[results]](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing)
 
-The results of ProbEn in KAIST has released [here](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing)! 
-
-The other parts will be released after CVPR deadline!
+The results of ProbEn in KAIST/FLIR are released [here](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing)! 
 
 **Authors**: Yi-Ting Chen<sup>\*</sup>, 
 Jinghao Shi<sup>\*</sup>, 
