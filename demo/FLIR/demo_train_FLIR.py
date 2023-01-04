@@ -29,7 +29,7 @@ val_path = '../../../Datasets/'+ dataset +'/val/'
 val_folder = '../../../Datasets/FLIR/val/thermal_8_bit/'
 val_json_path = '../../../Datasets/'+dataset+'/val/FLIR_thermal_RGBT_pairs_val.json'
 
-# Register datase
+# Register dataset
 dataset_train = 'FLIR_train'
 register_coco_instances(dataset_train, {}, train_json_path, train_folder)
 FLIR_metadata_train = MetadataCatalog.get(dataset_train)
