@@ -1,5 +1,7 @@
 ## Installation
 
+Our codes are working on conda environment. For the whole working environment, please refer to probEn.yml file.
+
 The installation of this code follow by detectron2. The following installation guide is from [detectron2](https://github.com/facebookresearch/detectron2).
 
 Our [Colab Notebook](https://colab.research.google.com/drive/16jcaJoc6bCFAQ96jDe2HwtXj7BMD_-m5)
