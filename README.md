@@ -9,7 +9,7 @@
 [[models]](https://drive.google.com/drive/folders/1U1qXYPmts8Xl9xhc1Asb_VpR-_szfNv9?usp=sharing)
 [[results]](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing)
 
-The results of ProbEn in KAIST/FLIR are released [here](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing)! 
+The results of ProbEn in KAIST/FLIR are released ([KAIST](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing) / [FLIR](https://drive.google.com/drive/u/2/folders/1yrvYGEKDwL9lDVdrix8IuRVCGDHibqix))
 
 **Authors**: Yi-Ting Chen<sup>\*</sup>, 
 Jinghao Shi<sup>\*</sup>, 
@@ -17,20 +17,42 @@ Zelin Ye<sup>\*</sup>, Christoph Mertz, Deva Ramanan<sup>#</sup>, Shu Kong<sup>#
 
 ![alt text](https://mscvprojects.ri.cmu.edu/2020teamc/wp-content/uploads/sites/33/2020/05/Header.jpg "video demo")
 
+For installation, please check INSTALL.md.
 
+## Usage
 
+We provide the training, testing, and visualization code of thermal-only, early-fusion, middle-fusion and Bayesian fusion. Please change the setting for different fusion methods in the code.
 
+Training:
 
+    python demo_train_FLIR.py
+    
+Test mAP:
 
-**Abstract** 
+    python demo_mAP_FLIR.py
+    
+Visualize predicted boxes:
+    
+    python demo_draw_FLIR.py    
+    
+Probabilistic Ensembling:
 
-Object detection with multimodal inputs can improve many safety-critical systems such as autonomous vehicles (AVs). Motivated by AVs that operate in both day and night, we study multimodal object detection with RGB and thermal cameras, since the latter provides much stronger object signatures under poor illumination. We explore strategies for fusing information from different modalities. Our key contribution is a probabilistic ensembling technique, ProbEn, a simple non-learned method that fuses together detections from multi-modalities. We derive ProbEn from Bayes' rule and first principles that assume conditional independence across modalities. Through probabilistic marginalization, ProbEn elegantly handles missing modalities when detectors do not fire on the same object. Importantly, ProbEn also notably improves multimodal detection even when the conditional independence assumption does not hold, e.g., fusing outputs from other fusion methods (both off-the-shelf and trained in-house). We validate ProbEn on two benchmarks containing both aligned (KAIST) and unaligned (FLIR) multimodal images, showing that ProbEn outperforms prior work by more than 13% in relative performance!
+First, you should save predictions from different models using demo_FLIR_save_predictions.py
 
+    # Example thermal only
+    python demo/FLIR/demo_FLIR_save_predictions.py --dataset_path /home/jamie/Desktop/Datasets/FLIR/val --fusion_method thermal_only --model_path trained_models/FLIR/models/thermal_only/out_model_thermal_only.pth
 
+    # Example early fusion
+    python demo/FLIR/demo_FLIR_save_predictions.py --dataset_path /home/jamie/Desktop/Datasets/FLIR/val --fusion_method early_fusion --model_path trained_models/FLIR/models/early_fusion/out_model_early_fusion.pth
 
-**keywords**
-Object Detection, Thermal, infrared camera, RGB-thermal detection, multimodality, multispectral, autonomous driving, sensor fusion, non-maximal suppression, probablistic modeling.
+    # Example middle fusion
+    python demo/FLIR/demo_FLIR_save_predictions.py --dataset_path /home/jamie/Desktop/Datasets/FLIR/val --fusion_method middle_fusion --model_path trained_models/FLIR/models/middle_fusion/out_model_middle_fusion.pth
 
+Then, you can change and load the predictions in demo_probEn.py
+
+    python demo/FLIR/demo_probEn.py --dataset_path /home/jamie/Desktop/Datasets/FLIR/val --prediction_path out/  --score_fusion max --box_fusion argmax
+
+For more example usage, please check run.sh file.
 
 
 If you find our model/method/dataset useful, please cite our work ([arxiv manuscript](https://arxiv.org/abs/2104.02904)):
