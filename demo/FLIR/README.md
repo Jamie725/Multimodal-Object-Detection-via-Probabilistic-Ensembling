@@ -11,8 +11,13 @@ Test mAP:
 
     python demo_mAP_FLIR.py
     
-Probabilistic Ensembling(updating):
-
+Visualize predicted boxes:
+    
+    python demo_draw_FLIR.py    
+    
+Probabilistic Ensembling(updating, not finished, will release them soon):
+    (The current files here are the previous verison. Will update to latest version soon!)
+    
     First, you should save predictions from different models 
     -> python save_predictions.py
 
