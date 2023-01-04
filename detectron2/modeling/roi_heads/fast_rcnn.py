@@ -40,7 +40,7 @@ Naming convention:
 """
 
 
-def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=None):
+def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=None, variance=torch.Tensor([])):
     """
     Call `fast_rcnn_inference_single_image` for all images.
 
@@ -69,14 +69,14 @@ def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, t
     if not class_logits == None:
         result_per_image = [
             fast_rcnn_inference_single_image(
-                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits
+                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits, variance=variance
             )
             for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
         ]
     else:
         result_per_image = [
             fast_rcnn_inference_single_image(
-                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image
+                boxes_per_image, scores_per_image, image_shape, score_thresh, nms_thresh, topk_per_image, variance=variance
             )
             for scores_per_image, boxes_per_image, image_shape in zip(scores, boxes, image_shapes)
         ]
@@ -84,7 +84,7 @@ def fast_rcnn_inference(boxes, scores, image_shapes, score_thresh, nms_thresh, t
 
 
 def fast_rcnn_inference_single_image(
-    boxes, scores, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits=None
+    boxes, scores, image_shape, score_thresh, nms_thresh, topk_per_image, class_logits=None, variance=torch.Tensor([])
 ):
     """
     Single-image inference. Return bounding-box detection results by thresholding
@@ -140,7 +140,9 @@ def fast_rcnn_inference_single_image(
     # Save out logits
     if not class_logits == None:        
         result.class_logits = class_logits[keep]
-        result.prob_score = predicted_probs[keep]        
+        result.prob_score = predicted_probs[keep]
+    if len(variance) > 0:
+        result.vars = variance[keep]    
     
     return result, filter_inds[:, 0]
 
@@ -436,7 +438,7 @@ class FastRCNNOutputs(object):
         scores = self.predict_probs()
         image_shapes = self.image_shapes
         if self.enable_output_pred_logits:
-            if len(self.variance) > 0:
+            if len(self.variance) > 0:                
                 return fast_rcnn_inference(
                     boxes, scores, image_shapes, score_thresh, nms_thresh, topk_per_image, class_logits=self.pred_class_logits, variance=self.variance
                 )

@@ -25,7 +25,7 @@ torch.cuda.set_device(0)
 dataset = 'FLIR'
 # Validation path
 val_folder = '../../../Datasets/FLIR/val/thermal_8_bit/'
-val_json_path = '../../../Datasets/'+dataset+'/val/thermal_RGBT_pairs_3_class.json'#FLIR_thermal_RGBT_pairs_val.json'
+val_json_path = '../../../Datasets/'+dataset+'/val/FLIR_thermal_RGBT_pairs_val.json'#FLIR_thermal_RGBT_pairs_val.json'
 # Test on validation set
 dataset_test = 'FLIR_val'
 register_coco_instances(dataset_test, {}, val_json_path, val_folder)
@@ -45,7 +45,7 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 # Method
 # Choice: thermal_only, early_fusion, middle_fusion
 ########################################################
-method = 'early_fusion'
+method = 'thermal_only'
 if method == "thermal_only":
     cfg.MODEL.WEIGHTS = 'trained_models/FLIR/models/thermal_only/out_model_thermal_only.pth'
     output_file = 'FLIR_thermal_only_mAP.out'
@@ -61,7 +61,7 @@ elif method == "middle_fusion":
     cfg.INPUT.NUM_IN_CHANNELS = 6
     cfg.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675, 135.438, 135.438, 135.438]
     cfg.MODEL.PIXEL_STD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-    cfg.MODEL.WEIGHTS = 'trained_models/FLIR/models/mid_fusion/out_model_middle_fusion.pth'
+    cfg.MODEL.WEIGHTS = 'trained_models/FLIR/models/middle_fusion/out_model_middle_fusion.pth'
     output_file = 'FLIR_middle_fusion_mAP.out'
 
 test(cfg, dataset_test, output_file, out_folder)

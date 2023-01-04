@@ -464,13 +464,14 @@ def apply_late_fusion_and_evaluate(cfg, evaluator, det_1, det_2, method, det_3='
 
 
 if __name__ == '__main__':
+    args = config_parser()
     data_set = 'val'
-    data_folder = 'out/box_predictions/'
+    data_folder = args.prediction_path
     dataset = 'FLIR'
     IOU = 50                 
     time = 'Day'
     model_1 = 'early_fusion'
-    model_2 = 'mid_fusion'
+    model_2 = 'middle_fusion'
     model_3 = 'thermal_only'
     if time == 'Day':
         val_file_name = 'thermal_RGBT_pairs_3_class_Day.json'#'thermal_annotations_4_channel_no_dogs_Day.json'
@@ -526,7 +527,6 @@ if __name__ == '__main__':
     det_3 = json.load(open(det_file_3, 'r'))
     evaluator = FLIREvaluator(dataset, cfg, False, output_dir=out_folder, save_eval=True, out_eval_path='out/mAP/FLIR_Baysian_'+data_set+'_avg_box_all.out')
     """
-    
     Method lists: 'bayesian_prior_wt_score_box': This is 
                   'bayesian_wt_score_box'
                   'baysian_avg_bbox'
