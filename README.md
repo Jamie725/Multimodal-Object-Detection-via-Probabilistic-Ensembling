@@ -9,7 +9,7 @@
 [[models]](https://drive.google.com/drive/folders/1U1qXYPmts8Xl9xhc1Asb_VpR-_szfNv9?usp=sharing)
 [[results]](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing)
 
-The results of ProbEn in KAIST/FLIR are released ([KAIST](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing) / [FLIR](https://drive.google.com/drive/u/2/folders/1yrvYGEKDwL9lDVdrix8IuRVCGDHibqix))
+The results of ProbEn are released! ([KAIST](https://drive.google.com/file/d/1XLjWa2KIrbfjaPGikCjSDIRM9U717Hot/view?usp=sharing) / [FLIR](https://drive.google.com/drive/u/2/folders/1yrvYGEKDwL9lDVdrix8IuRVCGDHibqix))
 
 **Authors**: Yi-Ting Chen<sup>\*</sup>, 
 Jinghao Shi<sup>\*</sup>, 
