@@ -25,15 +25,15 @@ We provide the training, testing, and visualization code of thermal-only, early-
 
 Training:
 
-    python demo_train_FLIR.py
+    python demo/FLIR/demo_train_FLIR.py
     
 Test mAP:
 
-    python demo_mAP_FLIR.py
+    python demo/FLIR/demo_mAP_FLIR.py
     
 Visualize predicted boxes:
     
-    python demo_draw_FLIR.py    
+    python demo/FLIR/demo_draw_FLIR.py    
     
 Probabilistic Ensembling:
 
