@@ -57,9 +57,11 @@ For more example usage, please check run.sh file.
 
 If you find our model/method/dataset useful, please cite our work ([arxiv manuscript](https://arxiv.org/abs/2104.02904)):
 
-    @inproceedings{RGBT-detection,
-      title={Multimodal Object Detection via Probabilistic Ensembling},
-      author={Chen, Yi-Ting and Shi, Jinghao and Mertz, Christoph and Kong, Shu and Ramanan, Deva},
-      booktitle={European Conference on Computer Vision (ECCV)},
-      year={2022}
+    @inproceedings{chen2022multimodal,
+      title={Multimodal object detection via probabilistic ensembling},
+      author={Chen, Yi-Ting and Shi, Jinghao and Ye, Zelin and Mertz, Christoph and Ramanan, Deva and Kong, Shu},
+      booktitle={Computer Vision--ECCV 2022: 17th European Conference, Tel Aviv, Israel, October 23--27, 2022, Proceedings, Part IX},
+      pages={139--158},
+      year={2022},
+      organization={Springer}
     }
