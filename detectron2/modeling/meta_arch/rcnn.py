@@ -187,7 +187,7 @@ class GeneralizedRCNN(nn.Module):
             if self.blur_rgb:
                 features_RGB = self.apply_Gaussian_blur(features_RGB)
                 
-            features_thermal = self.backbone(thermal_tensor)
+            features_thermal = self.backbone_2(thermal_tensor)
             features = {}
             for key in features_RGB.keys():
                 if self.max_pool_rgb:
