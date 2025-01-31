@@ -50,7 +50,7 @@ First, you should save predictions from different models using demo_FLIR_save_pr
 
 Then, you can change and load the predictions in demo_probEn.py
 
-    python demo/FLIR/demo_probEn.py --dataset_path /home/jamie/Desktop/Datasets/FLIR/val --prediction_path out/  --score_fusion max --box_fusion argmax
+    python demo/FLIR/demo_probEn.py --dataset_path /home/jamie/Desktop/Datasets/FLIR/val --prediction_path out/  --score_fusion probEn --box_fusion s-avg
 
 For more example usage, please check run.sh file.
 
