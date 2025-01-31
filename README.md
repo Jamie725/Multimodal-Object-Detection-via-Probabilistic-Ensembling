@@ -1,5 +1,7 @@
 # Multimodal Object Detection via Probabilistic Ensembling
 
+Update: added score/box fusion options explanation in the run.sh file 
+
 [ECCV 2022](https://eccv2022.ecva.net/) Oral presentation 
 
 [[project page]](https://mscvprojects.ri.cmu.edu/2020teamc/ "RGBT-detection") 
