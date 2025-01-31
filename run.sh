@@ -13,7 +13,7 @@ python demo/FLIR/demo_FLIR_save_predictions.py --dataset_path /path/to/your/data
 # Late fusion
 #####################
 python demo/FLIR/demo_probEn.py --dataset_path /path/to/your/dataset --prediction_path out/ \
-        --score_fusion probEn --box_fusion s-avg
+        --score_fusion probEn --box_fusion v-avg
 
 # There are difference choices for score fusion and box fusion
 # score fusion: probEn, avg, max
